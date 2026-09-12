@@ -2,13 +2,7 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { app } from 'electron';
 import * as path from 'node:path';
-import {
-  CommentEntity,
-  CounterEntity,
-  MetaEntity,
-  ProjectEntity,
-  TicketEntity,
-} from './entities';
+import { CommentEntity, CounterEntity, MetaEntity, ProjectEntity, TicketEntity } from './entities';
 
 export interface PersistedComment {
   id: number;
@@ -67,9 +61,7 @@ const getDataSource = (): DataSource => {
 // null means "never saved" (first run) — distinct from a legitimately empty workspace
 export const loadData = async (): Promise<PersistedData | null> => {
   const ds = getDataSource();
-  const initialized = await ds
-    .getRepository(MetaEntity)
-    .findOneBy({ key: 'initialized' });
+  const initialized = await ds.getRepository(MetaEntity).findOneBy({ key: 'initialized' });
   if (!initialized) return null;
 
   const [projects, tickets, comments, counters] = await Promise.all([
@@ -186,3 +178,115 @@ export const saveData = async (data: PersistedData): Promise<void> => {
     await em.save(MetaEntity, { key: 'initialized', value: '1' });
   });
 };
+
+// ---------------------------------------------------------------------------
+// Granular operations used by the MCP server. The store is a whole-dataset
+// document, so every mutation is load -> change -> save, serialised through a
+// single lock so MCP writes and renderer writes never interleave.
+// ---------------------------------------------------------------------------
+
+let chain: Promise<unknown> = Promise.resolve();
+
+/** Run `fn` exclusively against the database. */
+export const withDbLock = <T>(fn: () => Promise<T>): Promise<T> => {
+  const run = chain.then(fn, fn);
+  chain = run.catch(() => undefined);
+  return run;
+};
+
+const EMPTY: PersistedData = { projects: [], tickets: [], counters: {} };
+
+const today = (): string => new Date().toISOString().slice(0, 10);
+
+export class NotFoundError extends Error {
+  constructor(what: string, id: string) {
+    super(`${what} "${id}" not found`);
+    this.name = 'NotFoundError';
+  }
+}
+
+/** Apply a mutation to the whole dataset under the lock and persist it. */
+const mutate = <T>(fn: (data: PersistedData) => T): Promise<T> =>
+  withDbLock(async () => {
+    const data = (await loadData()) ?? structuredClone(EMPTY);
+    const result = fn(data);
+    await saveData(data);
+    return result;
+  });
+
+export const readData = (): Promise<PersistedData> =>
+  withDbLock(async () => (await loadData()) ?? structuredClone(EMPTY));
+
+export interface NewTicketInput {
+  projectId: string;
+  title: string;
+  description?: string;
+  status?: string;
+  priority?: string;
+  labels?: string[];
+  due?: string | null;
+  author: string;
+}
+
+export type TicketPatch = Partial<
+  Pick<PersistedTicket, 'title' | 'description' | 'status' | 'priority' | 'labels' | 'due'>
+>;
+
+export const createTicket = (input: NewTicketInput): Promise<PersistedTicket> =>
+  mutate((data) => {
+    const project = data.projects.find((p) => p.id === input.projectId);
+    if (!project) throw new NotFoundError('Project', input.projectId);
+    const next = (data.counters[project.id] || 0) + 1;
+    const now = today();
+    const ticket: PersistedTicket = {
+      id: `${project.slug}-${next}`,
+      projectId: project.id,
+      title: input.title,
+      description: input.description ?? '',
+      status: input.status ?? 'todo',
+      priority: input.priority ?? 'medium',
+      labels: input.labels ?? [],
+      due: input.due ?? null,
+      author: input.author,
+      created: now,
+      updated: now,
+      comments: [],
+    };
+    data.tickets.push(ticket);
+    data.counters[project.id] = next;
+    return ticket;
+  });
+
+export const updateTicket = (id: string, patch: TicketPatch): Promise<PersistedTicket> =>
+  mutate((data) => {
+    const ticket = data.tickets.find((t) => t.id === id);
+    if (!ticket) throw new NotFoundError('Ticket', id);
+    Object.assign(ticket, patch, { updated: today() });
+    return ticket;
+  });
+
+export const deleteTicket = (id: string): Promise<void> =>
+  mutate((data) => {
+    const idx = data.tickets.findIndex((t) => t.id === id);
+    if (idx === -1) throw new NotFoundError('Ticket', id);
+    data.tickets.splice(idx, 1);
+  });
+
+export const addComment = (
+  ticketId: string,
+  body: string,
+  author: string,
+): Promise<PersistedComment> =>
+  mutate((data) => {
+    const ticket = data.tickets.find((t) => t.id === ticketId);
+    if (!ticket) throw new NotFoundError('Ticket', ticketId);
+    const comment: PersistedComment = {
+      id: Date.now(),
+      author,
+      ts: new Date().toISOString(),
+      body,
+    };
+    ticket.comments.push(comment);
+    ticket.updated = today();
+    return comment;
+  });

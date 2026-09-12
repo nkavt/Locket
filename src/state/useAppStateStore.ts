@@ -99,6 +99,14 @@ export function useAppStateStore(): AppStateApi {
     }
   }, [state, hydrated]);
 
+  // Data changed outside the renderer (MCP tool calls): adopt it as-is.
+  useEffect(() => {
+    if (!hasDb() || !window.locket.data.onChanged) return;
+    return window.locket.data.onChanged((data) => {
+      setState((s) => ({ ...s, ...data }));
+    });
+  }, []);
+
   useEffect(() => {
     if (typeof window === 'undefined' || !window.locket) return;
     void window.locket.settings.get().then((persisted) => {

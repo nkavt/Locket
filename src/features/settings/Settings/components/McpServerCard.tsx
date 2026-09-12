@@ -1,4 +1,4 @@
-import { Box, Button, Typography } from '@mui/material';
+import { Alert, Box, Button, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -9,81 +9,78 @@ import { TextInput } from '@/components/ui';
 import { useAppState } from '@/state/useAppState';
 import { useSnackbar } from '@/state/useSnackbar';
 import { monoFontFamily } from '@/theme';
+import { useMcp } from '../../useMcp';
 import type { SettingsFormValues } from '../Settings';
 
-interface LogLine {
-  ts: string;
-  line: string;
-}
-
-const now = () => new Date().toLocaleTimeString();
-
-// NOTE: the server itself is not implemented yet; this card simulates
-// activity so the UI can be designed against it.
-const SAMPLE_ACTIVITY = [
-  'tools/list → 6 tools',
-  'tools/call list_projects',
-  'tools/call get_ticket lkt-2',
-  'resources/list → 12 markdown resources',
-  'tools/call create_comment lkt-3',
-];
+const formatTs = (iso: string) => new Date(iso).toLocaleTimeString();
 
 export function McpServerCard() {
   const { state, setSettings } = useAppState();
-  const { mcpRunning, mcpPort } = state.settings;
+  const { mcpPort } = state.settings;
   const snack = useSnackbar();
   const { t } = useTranslation();
+  const mcp = useMcp();
+  const [busy, setBusy] = useState(false);
   const {
     register,
     formState: { errors, isValid, dirtyFields },
   } = useFormContext<SettingsFormValues>();
-  const [logs, setLogs] = useState<LogLine[]>([]);
 
+  const running = mcp.status.running;
+
+  // Mirror the real server state into app settings for anything else that reads it.
   useEffect(() => {
-    if (!mcpRunning) return;
-    let i = 0;
-    const id = window.setInterval(() => {
-      setLogs((ls) => [
-        ...ls.slice(-30),
-        { ts: now(), line: SAMPLE_ACTIVITY[i % SAMPLE_ACTIVITY.length] },
-      ]);
-      i++;
-    }, 2400);
-    return () => window.clearInterval(id);
-  }, [mcpRunning]);
+    if (state.settings.mcpRunning !== running) setSettings({ mcpRunning: running });
+  }, [running, state.settings.mcpRunning, setSettings]);
 
-  const start = () => {
-    setSettings({ mcpRunning: true });
-    setLogs([
-      { ts: now(), line: `MCP server started on port ${mcpPort}` },
-      { ts: now(), line: 'Listening for SSE connections…' },
-    ]);
-    snack(t('settings.mcp.started'), { severity: 'success' });
+  const start = async () => {
+    setBusy(true);
+    try {
+      await mcp.start(mcpPort);
+      snack(t('settings.mcp.started'), { severity: 'success' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      snack(t('settings.mcp.startFailed', { message }), { severity: 'error' });
+    } finally {
+      setBusy(false);
+    }
   };
-  const stop = () => {
-    setSettings({ mcpRunning: false });
-    setLogs((ls) => [...ls, { ts: now(), line: 'MCP server stopped.' }]);
-    snack(t('settings.mcp.stoppedSnack'));
+
+  const stop = async () => {
+    setBusy(true);
+    try {
+      await mcp.stop();
+      snack(t('settings.mcp.stoppedSnack'));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <SettingsCard title={t('settings.mcp.title')} subtitle={t('settings.mcp.subtitle')}>
+      {!mcp.available && (
+        <Alert severity="info" sx={{ marginBottom: 2 }}>
+          {t('settings.mcp.unavailable')}
+        </Alert>
+      )}
+
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, marginBottom: 2 }}>
         <Box
           sx={{
             width: 8,
             height: 8,
             borderRadius: '50%',
-            background: mcpRunning ? 'success.main' : 'text.disabled',
-            animation: mcpRunning ? 'pulseDot 2s infinite' : 'none',
+            background: running ? 'success.main' : 'text.disabled',
+            animation: running ? 'pulseDot 2s infinite' : 'none',
           }}
         />
         <Typography sx={{ fontSize: 13.5, fontWeight: 500 }}>
-          {mcpRunning ? t('settings.mcp.running') : t('settings.mcp.stopped')}
+          {running ? t('settings.mcp.running') : t('settings.mcp.stopped')}
         </Typography>
-        {mcpRunning && (
+        {running && mcp.status.url && (
           <Box
             component="code"
+            title={t('settings.mcp.connectHint')}
             sx={{
               fontFamily: monoFontFamily,
               fontSize: 12,
@@ -93,7 +90,7 @@ export function McpServerCard() {
               color: 'text.secondary',
             }}
           >
-            http://127.0.0.1:{mcpPort}/mcp
+            {mcp.status.url}
           </Box>
         )}
       </Box>
@@ -103,6 +100,7 @@ export function McpServerCard() {
           <TextInput
             label={t('settings.mcp.port')}
             size="small"
+            disabled={running}
             {...register('port', {
               validate: (v) => {
                 const n = Number(v);
@@ -114,13 +112,13 @@ export function McpServerCard() {
           />
         </Box>
         <Box sx={{ paddingTop: 0.5, display: 'flex', gap: 1 }}>
-          {!mcpRunning ? (
+          {!running ? (
             <Button
               variant="contained"
               color="success"
               startIcon={<Icon name="play_arrow" size={18} />}
               onClick={start}
-              disabled={!!dirtyFields.port || !isValid}
+              disabled={!mcp.available || busy || !!dirtyFields.port || !isValid}
             >
               {t('settings.mcp.start')}
             </Button>
@@ -130,6 +128,7 @@ export function McpServerCard() {
               color="error"
               startIcon={<Icon name="stop" size={18} />}
               onClick={stop}
+              disabled={busy}
             >
               {t('settings.mcp.stop')}
             </Button>
@@ -155,13 +154,13 @@ export function McpServerCard() {
             lineHeight: 1.7,
           }}
         >
-          {logs.length === 0 ? (
+          {mcp.logs.length === 0 ? (
             <Box sx={{ color: '#6e7681' }}>{t('settings.mcp.idle')}</Box>
           ) : (
-            logs.map((l, i) => (
-              <Box key={i}>
+            mcp.logs.map((l, i) => (
+              <Box key={`${l.ts}-${i}`}>
                 <Box component="span" sx={{ color: '#6e7681' }}>
-                  {l.ts}
+                  {formatTs(l.ts)}
                 </Box>
                 <Box component="span" sx={{ color: '#79c0ff', mx: 1 }}>
                   ›
