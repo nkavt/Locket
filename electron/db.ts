@@ -333,3 +333,16 @@ export const deleteProject = (id: string): Promise<{ deletedTickets: number }> =
     delete data.counters[id];
     return { deletedTickets: before - data.tickets.length };
   });
+
+export type ProjectPatch = Partial<
+  Pick<PersistedProject, 'name' | 'icon' | 'color' | 'description'>
+>;
+
+/** Update a project's editable fields. The slug is immutable once tickets carry it. */
+export const updateProject = (id: string, patch: ProjectPatch): Promise<PersistedProject> =>
+  mutate((data) => {
+    const project = data.projects.find((p) => p.id === id);
+    if (!project) throw new NotFoundError('Project', id);
+    Object.assign(project, patch);
+    return project;
+  });

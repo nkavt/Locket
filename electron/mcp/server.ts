@@ -7,6 +7,7 @@ import {
   deleteProject,
   deleteTicket,
   readData,
+  updateProject,
   updateTicket,
   type PersistedData,
   type PersistedTicket,
@@ -135,6 +136,29 @@ export function createMcpServer(hooks: McpServerHooks = {}): McpServer {
     guarded(async (input) => {
       log(`tools/call create_project ${input.slug}`);
       const project = await createProject(input);
+      await changed();
+      return json(project);
+    }),
+  );
+
+  server.registerTool(
+    'update_project',
+    {
+      title: 'Update project',
+      description: 'Update a project name, icon, colour or description. The slug cannot change.',
+      inputSchema: {
+        id: z.string().describe('Project id from list_projects'),
+        name: z.string().min(1).optional(),
+        icon: z.string().optional(),
+        color: z.string().optional(),
+        description: z.string().optional().describe('Markdown, replaces the whole description'),
+      },
+      annotations: { idempotentHint: true },
+    },
+    guarded(async ({ id, ...patch }) => {
+      log(`tools/call update_project ${id}`);
+      const defined = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
+      const project = await updateProject(id, defined);
       await changed();
       return json(project);
     }),

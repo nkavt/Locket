@@ -33,6 +33,12 @@ vi.mock('../db', () => {
       store.data.counters[project.id] = 0;
       return project;
     },
+    updateProject: async (id: string, patch: Record<string, unknown>) => {
+      const p = store.data.projects.find((x) => x.id === id);
+      if (!p) throw new NotFoundError('Project', id);
+      Object.assign(p, patch);
+      return p;
+    },
     deleteProject: async (id: string) => {
       const i = store.data.projects.findIndex((p) => p.id === id);
       if (i === -1) throw new NotFoundError('Project', id);
@@ -155,6 +161,7 @@ describe('MCP server', () => {
     expect(tools).toEqual([
       'list_projects',
       'create_project',
+      'update_project',
       'delete_project',
       'list_tickets',
       'get_ticket',
@@ -255,13 +262,18 @@ describe('MCP server', () => {
     expect(dup.isError).toBe(true);
     expect(text(dup)).toMatch(/already in use/);
 
+    const renamed = parse(
+      await client.callTool({ name: 'update_project', arguments: { id: 'p1', name: 'Uno' } }),
+    );
+    expect(renamed).toMatchObject({ id: 'p1', name: 'Uno', slug: 'one' });
+
     const deleted = parse(
       await client.callTool({ name: 'delete_project', arguments: { id: 'p1' } }),
     );
     expect(deleted).toEqual({ deleted: 'p1', deletedTickets: 1 });
     expect(store.data.projects.map((p) => p.id)).toEqual(['p2', 'three-abcd']);
     expect(store.data.tickets.map((t) => t.id)).toEqual(['two-1']);
-    expect(onDataChanged).toHaveBeenCalledTimes(2);
+    expect(onDataChanged).toHaveBeenCalledTimes(3);
   });
 
   it('reports missing tickets and projects as tool errors', async () => {
