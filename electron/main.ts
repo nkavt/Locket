@@ -88,10 +88,13 @@ const mcp = new McpHost({
 mcp.on('log', (line) => broadcast('mcp:log', line));
 mcp.on('status', (status) => broadcast('mcp:status', status));
 
+const iconPath = path.join(__dirname, '..', 'build', 'icon.png');
+
 const createWindow = (): void => {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -108,6 +111,8 @@ const createWindow = (): void => {
 };
 
 app.whenReady().then(async () => {
+  // Packaged builds get the icon from the bundle; in dev set the Dock icon by hand.
+  if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(iconPath);
   await initDb();
 
   ipcMain.handle('settings:get', () => readSettings());

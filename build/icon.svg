@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Locket app icon. macOS-style: the tile sits inside a ~10% transparent margin. -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#24224a"/>
+  <g transform="translate(100 100) scale(1.609375)" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="58">
+    <path d="M180 128v218" stroke="#f6f4ff"/>
+    <path d="M180 346l62 44 124-118" stroke="#8b7cff"/>
+  </g>
+</svg>

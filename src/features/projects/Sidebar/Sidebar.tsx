@@ -8,6 +8,7 @@ import { NewProjectDialog } from '../NewProjectDialog';
 import { EditProjectDialog } from '../EditProjectDialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Icon } from '@/components/Icon';
+import { AppMark } from '@/components/AppMark';
 import { ProjectAvatar } from '@/components/ProjectAvatar';
 import { SectionLabel } from '@/components/SectionLabel';
 import { APP_VERSION } from '@/data/constants';
@@ -69,23 +70,7 @@ export function Sidebar() {
           borderColor: 'divider',
         }}
       >
-        <Box
-          sx={{
-            width: 28,
-            height: 28,
-            borderRadius: '7px',
-            background: (t) =>
-              `linear-gradient(135deg, ${t.palette.primary.main}, oklch(0.55 0.16 280))`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: 15,
-          }}
-        >
-          P
-        </Box>
+        <AppMark size={28} />
         <Box sx={{ flex: 1 }}>
           <Typography sx={{ fontSize: 14, fontWeight: 500 }}>{t('app.name')}</Typography>
           <Typography sx={{ fontSize: 10.5, color: 'text.disabled', fontFamily: monoFontFamily }}>
