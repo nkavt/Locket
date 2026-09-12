@@ -17,6 +17,30 @@ vi.mock('../db', () => {
   return {
     NotFoundError,
     readData: async () => structuredClone(store.data),
+    createProject: async (input: { name: string; slug: string }) => {
+      if (store.data.projects.some((p) => p.slug === input.slug)) {
+        throw new Error(`Slug "${input.slug}" already in use`);
+      }
+      const project = {
+        id: `${input.slug}-abcd`,
+        name: input.name,
+        slug: input.slug,
+        icon: 'rocket_launch',
+        color: '#1976d2',
+        description: '',
+      };
+      store.data.projects.push(project);
+      store.data.counters[project.id] = 0;
+      return project;
+    },
+    deleteProject: async (id: string) => {
+      const i = store.data.projects.findIndex((p) => p.id === id);
+      if (i === -1) throw new NotFoundError('Project', id);
+      store.data.projects.splice(i, 1);
+      const before = store.data.tickets.length;
+      store.data.tickets = store.data.tickets.filter((t) => t.projectId !== id);
+      return { deletedTickets: before - store.data.tickets.length };
+    },
     createTicket: async (input: {
       projectId: string;
       title: string;
@@ -130,6 +154,8 @@ describe('MCP server', () => {
     const tools = (await client.listTools()).tools.map((t) => t.name);
     expect(tools).toEqual([
       'list_projects',
+      'create_project',
+      'delete_project',
       'list_tickets',
       'get_ticket',
       'create_ticket',
@@ -209,6 +235,33 @@ describe('MCP server', () => {
     expect(deleted).toEqual({ deleted: 'one-2' });
     expect(store.data.tickets.map((t) => t.id)).toEqual(['one-1', 'two-1']);
     expect(onDataChanged).toHaveBeenCalledTimes(4);
+  });
+
+  it('creates and deletes projects, cascading to tickets', async () => {
+    const onDataChanged = vi.fn();
+    const { client } = await connect({ onDataChanged });
+    const created = parse(
+      await client.callTool({
+        name: 'create_project',
+        arguments: { name: 'Three', slug: 'three' },
+      }),
+    );
+    expect(created).toMatchObject({ id: 'three-abcd', slug: 'three' });
+
+    const dup = await client.callTool({
+      name: 'create_project',
+      arguments: { name: 'X', slug: 'one' },
+    });
+    expect(dup.isError).toBe(true);
+    expect(text(dup)).toMatch(/already in use/);
+
+    const deleted = parse(
+      await client.callTool({ name: 'delete_project', arguments: { id: 'p1' } }),
+    );
+    expect(deleted).toEqual({ deleted: 'p1', deletedTickets: 1 });
+    expect(store.data.projects.map((p) => p.id)).toEqual(['p2', 'three-abcd']);
+    expect(store.data.tickets.map((t) => t.id)).toEqual(['two-1']);
+    expect(onDataChanged).toHaveBeenCalledTimes(2);
   });
 
   it('reports missing tickets and projects as tool errors', async () => {

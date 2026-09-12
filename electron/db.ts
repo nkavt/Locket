@@ -290,3 +290,46 @@ export const addComment = (
     ticket.updated = today();
     return comment;
   });
+
+export interface NewProjectInput {
+  name: string;
+  slug: string;
+  icon?: string;
+  color?: string;
+  description?: string;
+}
+
+const SLUG_RE = /^[a-z0-9-]{2,12}$/;
+
+export const createProject = (input: NewProjectInput): Promise<PersistedProject> =>
+  mutate((data) => {
+    if (!SLUG_RE.test(input.slug)) {
+      throw new Error(`Invalid slug "${input.slug}": use 2-12 chars of a-z, 0-9 or "-"`);
+    }
+    if (data.projects.some((p) => p.slug === input.slug)) {
+      throw new Error(`Slug "${input.slug}" already in use`);
+    }
+    const project: PersistedProject = {
+      id: `${input.slug}-${Math.random().toString(36).slice(2, 6)}`,
+      name: input.name,
+      slug: input.slug,
+      icon: input.icon ?? 'rocket_launch',
+      color: input.color ?? '#1976d2',
+      description: input.description ?? `# ${input.name}\n\n`,
+    };
+    data.projects.push(project);
+    data.counters[project.id] = 0;
+    return project;
+  });
+
+/** Delete a project and every ticket in it. */
+export const deleteProject = (id: string): Promise<{ deletedTickets: number }> =>
+  mutate((data) => {
+    const idx = data.projects.findIndex((p) => p.id === id);
+    if (idx === -1) throw new NotFoundError('Project', id);
+    data.projects.splice(idx, 1);
+    const before = data.tickets.length;
+    data.tickets = data.tickets.filter((t) => t.projectId !== id);
+    delete data.counters[id];
+    return { deletedTickets: before - data.tickets.length };
+  });

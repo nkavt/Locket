@@ -2,7 +2,9 @@ import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mc
 import { z } from 'zod';
 import {
   addComment,
+  createProject,
   createTicket,
+  deleteProject,
   deleteTicket,
   readData,
   updateTicket,
@@ -113,6 +115,44 @@ export function createMcpServer(hooks: McpServerHooks = {}): McpServer {
           ticketCount: data.tickets.filter((t) => t.projectId === p.id).length,
         })),
       );
+    }),
+  );
+
+  server.registerTool(
+    'create_project',
+    {
+      title: 'Create project',
+      description:
+        'Create a project. The slug (2-12 chars, a-z 0-9 -) prefixes its ticket ids and cannot change later.',
+      inputSchema: {
+        name: z.string().min(1),
+        slug: z.string().regex(/^[a-z0-9-]{2,12}$/),
+        icon: z.string().optional().describe('Icon name, e.g. rocket_launch, bolt, science'),
+        color: z.string().optional().describe('Hex colour, e.g. #1976d2'),
+        description: z.string().optional().describe('Markdown'),
+      },
+    },
+    guarded(async (input) => {
+      log(`tools/call create_project ${input.slug}`);
+      const project = await createProject(input);
+      await changed();
+      return json(project);
+    }),
+  );
+
+  server.registerTool(
+    'delete_project',
+    {
+      title: 'Delete project',
+      description: 'Permanently delete a project and every ticket in it.',
+      inputSchema: { id: z.string().describe('Project id from list_projects') },
+      annotations: { destructiveHint: true },
+    },
+    guarded(async ({ id }) => {
+      log(`tools/call delete_project ${id}`);
+      const result = await deleteProject(id);
+      await changed();
+      return json({ deleted: id, ...result });
     }),
   );
 
