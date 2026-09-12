@@ -1,0 +1,1 @@
+export { CommentsThread } from './CommentsThread';

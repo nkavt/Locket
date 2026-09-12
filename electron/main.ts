@@ -1,0 +1,128 @@
+import { app, BrowserWindow, ipcMain } from 'electron';
+import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { initDb, loadData, saveData, type PersistedData } from './db';
+
+interface PersistedSettings {
+  mcpPort: number;
+  workspacePath: string;
+}
+
+const getSettingsPath = (): string =>
+  path.join(app.getPath('userData'), 'settings.json');
+
+const getDefaults = (): PersistedSettings => ({
+  mcpPort: 7821,
+  workspacePath: path.join(app.getPath('userData'), 'workspace'),
+});
+
+const writeFile = async (settings: PersistedSettings): Promise<void> => {
+  await fs.mkdir(path.dirname(getSettingsPath()), { recursive: true });
+  await fs.writeFile(
+    getSettingsPath(),
+    JSON.stringify(settings, null, 2) + '\n',
+    'utf8',
+  );
+};
+
+const readSettings = async (): Promise<PersistedSettings> => {
+  const defaults = getDefaults();
+  try {
+    const raw = await fs.readFile(getSettingsPath(), 'utf8');
+    const parsed = JSON.parse(raw) as Partial<PersistedSettings>;
+    return { ...defaults, ...parsed };
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT') {
+      await writeFile(defaults);
+      return defaults;
+    }
+    console.error('[settings] failed to read, using defaults:', err);
+    return defaults;
+  }
+};
+
+const validatePatch = (patch: Partial<PersistedSettings>): void => {
+  if ('mcpPort' in patch) {
+    const p = patch.mcpPort;
+    if (!Number.isInteger(p) || p! < 1024 || p! > 65535) {
+      throw new Error(`Invalid mcpPort: ${p}`);
+    }
+  }
+  if ('workspacePath' in patch) {
+    if (typeof patch.workspacePath !== 'string' || patch.workspacePath.length === 0) {
+      throw new Error('workspacePath must be a non-empty string');
+    }
+  }
+};
+
+const writeSettings = async (
+  patch: Partial<PersistedSettings>,
+): Promise<PersistedSettings> => {
+  validatePatch(patch);
+  const current = await readSettings();
+  const merged: PersistedSettings = { ...current, ...patch };
+  await writeFile(merged);
+  return merged;
+};
+
+const getOsUserName = async (): Promise<string> => {
+  if (process.platform === 'darwin') {
+    try {
+      const { stdout } = await promisify(execFile)('id', ['-F']);
+      const fullName = stdout.trim();
+      if (fullName) return fullName;
+    } catch {
+      // fall back to the login name
+    }
+  }
+  return os.userInfo().username;
+};
+
+const createWindow = (): void => {
+  const win = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  if (process.env.VITE_DEV_SERVER_URL) {
+    void win.loadURL(process.env.VITE_DEV_SERVER_URL);
+    win.webContents.openDevTools({ mode: 'detach' });
+  } else {
+    void win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+  }
+};
+
+app.whenReady().then(async () => {
+  await initDb();
+
+  ipcMain.handle('settings:get', () => readSettings());
+  ipcMain.handle('settings:set', (_e, patch: Partial<PersistedSettings>) =>
+    writeSettings(patch),
+  );
+  ipcMain.handle('user:get', () => getOsUserName());
+  ipcMain.handle('data:get', () => loadData());
+  ipcMain.handle('data:set', (_e, data: PersistedData) => saveData(data));
+
+  createWindow();
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});

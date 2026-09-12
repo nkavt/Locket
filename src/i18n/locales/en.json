@@ -1,0 +1,163 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "confirm": "Confirm",
+    "back": "Back",
+    "preview": "Preview",
+    "moreActions": "More actions",
+    "untitled": "Untitled"
+  },
+  "app": {
+    "name": "Locket",
+    "versionTag": "v{{version}} · local",
+    "toggleTheme": "Toggle theme",
+    "localWorkspace": "Local workspace"
+  },
+  "time": {
+    "justNow": "just now"
+  },
+  "status": {
+    "todo": "To Do",
+    "in_progress": "In Progress",
+    "done": "Done"
+  },
+  "priority": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High"
+  },
+  "projects": {
+    "sectionTitle": "Projects",
+    "systemSection": "System",
+    "settingsLink": "Settings",
+    "newProject": "New project",
+    "editProject": "Edit project",
+    "deleteProject": "Delete project",
+    "empty": {
+      "title": "No projects yet",
+      "subtitle": "Create your first project to get started."
+    },
+    "deleteConfirm": {
+      "title": "Delete project?",
+      "message": "\"{{name}}\" and all its tickets will be removed."
+    },
+    "form": {
+      "name": "Project name",
+      "namePlaceholder": "e.g. Mobile App",
+      "slug": "Slug (used in ticket IDs)",
+      "slugReadonly": "Slug",
+      "slugImmutable": "Slugs cannot be changed",
+      "slugTaken": "Slug already in use",
+      "slugPreview": "Tickets will be {{slug}}-1, {{slug}}-2, …",
+      "slugPlaceholder": "slug",
+      "icon": "Icon",
+      "color": "Color",
+      "description": "Description (markdown)",
+      "descriptionOptional": "Description (markdown, optional)",
+      "create": "Create project"
+    }
+  },
+  "tickets": {
+    "newTicket": "New ticket",
+    "newTicketIn": "in {{project}}",
+    "createTicket": "Create ticket",
+    "ticketCount_one": "{{count}} ticket",
+    "ticketCount_other": "{{count}} tickets",
+    "doneCount": "{{count}} done",
+    "empty": {
+      "none": "No tickets yet",
+      "noMatch": "No tickets match your filters"
+    },
+    "filters": {
+      "searchPlaceholder": "Search tickets, labels, IDs…",
+      "allStatuses": "All statuses",
+      "allPriorities": "All priorities"
+    },
+    "form": {
+      "title": "Title",
+      "description": "Description (markdown)",
+      "descriptionPlaceholder": "## Goal\n\nWhat needs to happen and why…",
+      "dueDate": "Due date",
+      "labels": "Labels"
+    },
+    "detail": {
+      "copyLink": "Copy link",
+      "linkCopied": "Link copied",
+      "deleteTicket": "Delete ticket",
+      "titleField": "Ticket title",
+      "updatedBy": "Updated {{time}} · by {{author}}",
+      "noDueDate": "No due date",
+      "addLabel": "Add label",
+      "removeLabel": "Remove label {{label}}",
+      "description": "Description",
+      "descriptionEmpty": "No description yet. Click <em>Edit</em> to write one.",
+      "descriptionHint": "Markdown supported",
+      "descriptionSaved": "Description saved",
+      "deleteConfirm": {
+        "title": "Delete ticket?",
+        "message": "\"{{title}}\" will be removed permanently."
+      }
+    }
+  },
+  "comments": {
+    "title": "Notes & comments",
+    "empty": "No comments yet — start the conversation.",
+    "placeholder": "Leave a note… (markdown supported, paste images)",
+    "newComment": "New comment",
+    "attachImage": "Attach image",
+    "bold": "Bold",
+    "code": "Code",
+    "bulletedList": "Bulleted list",
+    "submit": "Comment",
+    "removeImage": "Remove {{name}}"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "App preferences and MCP integration",
+    "unsaved": "Unsaved changes",
+    "allSaved": "All changes saved",
+    "discard": "Discard",
+    "saveChanges": "Save changes",
+    "saved": "Settings saved",
+    "mcp": {
+      "title": "MCP Server",
+      "subtitle": "Expose Locket over the Model Context Protocol so AI agents can read and update your tickets.",
+      "running": "Running",
+      "stopped": "Stopped",
+      "port": "Port",
+      "portInvalid": "Invalid port",
+      "portRange": "Range 1024–65535",
+      "start": "Start server",
+      "stop": "Stop server",
+      "started": "MCP server started",
+      "stoppedSnack": "MCP server stopped",
+      "recentActivity": "Recent activity",
+      "idle": "Server is idle. Start it to begin streaming logs."
+    },
+    "storage": {
+      "title": "Storage",
+      "subtitle": "Tickets are stored as plain markdown files on disk.",
+      "workspacePath": "Workspace path",
+      "workspacePathHint": "Where ticket markdown files are stored",
+      "workspacePathEmpty": "Path cannot be empty",
+      "reset": "Reset workspace",
+      "resetConfirm": {
+        "title": "Reset workspace?",
+        "message": "This will delete all projects, tickets, and comments and restore the default sample content. This action cannot be undone.",
+        "confirm": "Reset"
+      },
+      "resetDone": "Workspace reset"
+    },
+    "about": {
+      "title": "About",
+      "version": "Version",
+      "runtime": "Runtime",
+      "platform": "Platform",
+      "browser": "browser",
+      "unknown": "unknown"
+    }
+  }
+}
