@@ -1,3 +1,4 @@
+import { app } from 'electron';
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
@@ -13,7 +14,7 @@ import {
   type PersistedTicket,
 } from '../db';
 
-export const SERVER_INFO = { name: 'locket', version: '0.4.2' };
+export const SERVER_INFO = { name: 'locket', version: app.getVersion() };
 
 const STATUS = z.enum(['todo', 'in_progress', 'done']);
 const PRIORITY = z.enum(['low', 'medium', 'high']);

@@ -7,6 +7,8 @@ import type { PersistedData, PersistedTicket } from '../db';
 // load -> mutate -> save semantics without touching Electron or disk.
 const store: { data: PersistedData } = { data: { projects: [], tickets: [], counters: {} } };
 
+vi.mock('electron', () => ({ app: { getVersion: () => '0.0.0-test' } }));
+
 vi.mock('../db', () => {
   const today = () => new Date().toISOString().slice(0, 10);
   class NotFoundError extends Error {

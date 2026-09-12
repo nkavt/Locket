@@ -1,6 +1,6 @@
 import type { AppData, LabelOption, PriorityOption, Project, StatusOption, Ticket } from './types';
 
-export const APP_VERSION = '0.4.2';
+export const APP_VERSION: string = __APP_VERSION__;
 
 export const STATUSES: StatusOption[] = [
   {
