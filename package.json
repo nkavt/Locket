@@ -76,7 +76,7 @@
   "description": "Local-first desktop task planner with an MCP server.",
   "author": "Nikoloz Kavtaradze <n.kavtaradze94@gmail.com>",
   "build": {
-    "appId": "store.kargi.locket",
+    "appId": "dev.nkavt.locket",
     "productName": "Locket",
     "copyright": "Copyright \u00a9 2026 Nikoloz Kavtaradze",
     "directories": {
