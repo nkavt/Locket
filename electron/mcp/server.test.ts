@@ -1,5 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PersistedData, PersistedTicket } from '../db';
 
@@ -101,11 +102,23 @@ vi.mock('../db', () => {
   };
 });
 
-const { createMcpServer, ticketToMarkdown } = await import('./server');
+const { createMcpServer } = await import('./server');
+const { ticketToMarkdown } = await import('./format');
 
-const text = (r: { content?: unknown }) =>
-  (r.content as Array<{ type: string; text: string }>)[0].text;
-const parse = (r: { content?: unknown }) => JSON.parse(text(r));
+type ToolResult = Awaited<ReturnType<Client['callTool']>>;
+
+const text = (r: ToolResult) => {
+  const first = (r as CallToolResult).content[0];
+  if (first.type !== 'text') throw new Error(`Expected text content, got ${first.type}`);
+  return first.text;
+};
+const parse = (r: ToolResult) => JSON.parse(text(r));
+
+const resourceText = (r: { contents: Array<{ text?: string; blob?: string }> }) => {
+  const first = r.contents[0];
+  if (first.text === undefined) throw new Error('Expected a text resource, got a blob');
+  return first.text;
+};
 
 async function connect(hooks = {}) {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -295,17 +308,14 @@ describe('MCP server', () => {
     const { client } = await connect();
     const r = await client.readResource({ uri: 'locket://tickets/one-1' });
     expect(r.contents[0].mimeType).toBe('text/markdown');
-    expect(r.contents[0].text).toContain('# one-1: Fix the bug');
-    expect(r.contents[0].text).toContain('- **Labels:** bug');
+    expect(resourceText(r)).toContain('# one-1: Fix the bug');
+    expect(resourceText(r)).toContain('- **Labels:** bug');
   });
 
   it('reads the projects resource as JSON', async () => {
     const { client } = await connect();
     const r = await client.readResource({ uri: 'locket://projects' });
-    expect(JSON.parse(String(r.contents[0].text)).map((p: { id: string }) => p.id)).toEqual([
-      'p1',
-      'p2',
-    ]);
+    expect(JSON.parse(resourceText(r)).map((p: { id: string }) => p.id)).toEqual(['p1', 'p2']);
   });
 
   it('emits a log line per call', async () => {
