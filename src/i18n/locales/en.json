@@ -135,7 +135,10 @@
       "started": "MCP server started",
       "stoppedSnack": "MCP server stopped",
       "recentActivity": "Recent activity",
-      "idle": "Server is idle. Start it to begin streaming logs."
+      "idle": "Server is idle. Start it to begin streaming logs.",
+      "unavailable": "The MCP server runs inside the desktop app. Open Locket in Electron to start it.",
+      "startFailed": "Could not start the MCP server: {{message}}",
+      "connectHint": "Point an MCP client at this URL (Streamable HTTP)."
     },
     "storage": {
       "title": "Storage",

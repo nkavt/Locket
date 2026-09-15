@@ -11,6 +11,19 @@ export interface PersistedData {
   counters: Record<string, number>;
 }
 
+export interface McpStatus {
+  running: boolean;
+  port: number | null;
+  url: string | null;
+}
+
+export interface McpLogLine {
+  ts: string;
+  line: string;
+}
+
+export type Unsubscribe = () => void;
+
 declare global {
   interface Window {
     locket: {
@@ -24,6 +37,15 @@ declare global {
       data: {
         get: () => Promise<PersistedData | null>;
         set: (data: PersistedData) => Promise<void>;
+        /** Fires when the MCP server (or anything outside the renderer) changed the data. */
+        onChanged: (cb: (data: PersistedData) => void) => Unsubscribe;
+      };
+      mcp: {
+        status: () => Promise<McpStatus>;
+        start: (port?: number) => Promise<McpStatus>;
+        stop: () => Promise<McpStatus>;
+        onStatus: (cb: (status: McpStatus) => void) => Unsubscribe;
+        onLog: (cb: (line: McpLogLine) => void) => Unsubscribe;
       };
     };
   }

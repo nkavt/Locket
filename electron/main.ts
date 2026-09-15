@@ -4,15 +4,15 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { initDb, loadData, saveData, type PersistedData } from './db';
+import { initDb, loadData, saveData, withDbLock, type PersistedData } from './db';
+import { McpHost } from './mcp/http';
 
 interface PersistedSettings {
   mcpPort: number;
   workspacePath: string;
 }
 
-const getSettingsPath = (): string =>
-  path.join(app.getPath('userData'), 'settings.json');
+const getSettingsPath = (): string => path.join(app.getPath('userData'), 'settings.json');
 
 const getDefaults = (): PersistedSettings => ({
   mcpPort: 7821,
@@ -21,11 +21,7 @@ const getDefaults = (): PersistedSettings => ({
 
 const writeFile = async (settings: PersistedSettings): Promise<void> => {
   await fs.mkdir(path.dirname(getSettingsPath()), { recursive: true });
-  await fs.writeFile(
-    getSettingsPath(),
-    JSON.stringify(settings, null, 2) + '\n',
-    'utf8',
-  );
+  await fs.writeFile(getSettingsPath(), JSON.stringify(settings, null, 2) + '\n', 'utf8');
 };
 
 const readSettings = async (): Promise<PersistedSettings> => {
@@ -59,9 +55,7 @@ const validatePatch = (patch: Partial<PersistedSettings>): void => {
   }
 };
 
-const writeSettings = async (
-  patch: Partial<PersistedSettings>,
-): Promise<PersistedSettings> => {
+const writeSettings = async (patch: Partial<PersistedSettings>): Promise<PersistedSettings> => {
   validatePatch(patch);
   const current = await readSettings();
   const merged: PersistedSettings = { ...current, ...patch };
@@ -82,10 +76,25 @@ const getOsUserName = async (): Promise<string> => {
   return os.userInfo().username;
 };
 
+const broadcast = (channel: string, payload: unknown): void => {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) win.webContents.send(channel, payload);
+  }
+};
+
+const mcp = new McpHost({
+  onDataChanged: (data) => broadcast('data:changed', data),
+});
+mcp.on('log', (line) => broadcast('mcp:log', line));
+mcp.on('status', (status) => broadcast('mcp:status', status));
+
+const iconPath = path.join(__dirname, '..', 'build', 'icon.png');
+
 const createWindow = (): void => {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -102,23 +111,42 @@ const createWindow = (): void => {
 };
 
 app.whenReady().then(async () => {
+  // Packaged builds get the icon from the bundle; in dev set the Dock icon by hand.
+  if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(iconPath);
   await initDb();
 
   ipcMain.handle('settings:get', () => readSettings());
-  ipcMain.handle('settings:set', (_e, patch: Partial<PersistedSettings>) =>
-    writeSettings(patch),
-  );
+  ipcMain.handle('settings:set', (_e, patch: Partial<PersistedSettings>) => writeSettings(patch));
   ipcMain.handle('user:get', () => getOsUserName());
-  ipcMain.handle('data:get', () => loadData());
-  ipcMain.handle('data:set', (_e, data: PersistedData) => saveData(data));
+  ipcMain.handle('data:get', () => withDbLock(() => loadData()));
+  ipcMain.handle('data:set', (_e, data: PersistedData) => withDbLock(() => saveData(data)));
+
+  ipcMain.handle('mcp:status', () => mcp.status());
+  ipcMain.handle('mcp:start', async (_e, port?: number) => {
+    const settings = await readSettings();
+    const p = port ?? settings.mcpPort;
+    validatePatch({ mcpPort: p });
+    return mcp.start(p);
+  });
+  ipcMain.handle('mcp:stop', () => mcp.stop());
 
   createWindow();
+
+  // Handy for scripted testing: LOCKET_MCP_AUTOSTART=1 electron .
+  if (process.env.LOCKET_MCP_AUTOSTART) {
+    const { mcpPort } = await readSettings();
+    mcp.start(mcpPort).catch((err) => console.error('[mcp] autostart failed:', err));
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });
+});
+
+app.on('before-quit', () => {
+  void mcp.stop();
 });
 
 app.on('window-all-closed', () => {

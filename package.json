@@ -1,7 +1,7 @@
 {
   "name": "locket",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.4.2",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -19,11 +19,16 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "format": "prettier --write .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dist": "npm run build && electron-builder --publish never",
+    "dist:mac": "npm run build && electron-builder --mac --publish never",
+    "dist:win": "npm run build && electron-builder --win --publish never",
+    "dist:linux": "npm run build && electron-builder --linux --publish never"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@mui/icons-material": "^9.0.0",
     "@mui/material": "^9.0.0",
     "better-sqlite3": "^12.11.1",
@@ -36,7 +41,8 @@
     "react-router": "^7.18.3",
     "reflect-metadata": "^0.2.2",
     "remark-gfm": "^4.0.1",
-    "typeorm": "^1.0.0"
+    "typeorm": "^1.0.0",
+    "zod": "^4.6.2"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.1.0",
@@ -53,6 +59,7 @@
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "electron": "^41.4.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
@@ -65,5 +72,82 @@
     "vite": "^8.0.10",
     "vitest": "^5.0.0",
     "wait-on": "^9.0.5"
+  },
+  "description": "Local-first desktop task planner with an MCP server.",
+  "author": "Nikoloz Kavtaradze <n.kavtaradze94@gmail.com>",
+  "build": {
+    "appId": "dev.nkavt.locket",
+    "productName": "Locket",
+    "copyright": "Copyright \u00a9 2026 Nikoloz Kavtaradze",
+    "directories": {
+      "buildResources": "build",
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "build/icon.png",
+      "package.json"
+    ],
+    "asar": true,
+    "npmRebuild": true,
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.icns",
+      "darkModeSupport": true
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "build/icon.png",
+      "category": "Office"
+    }
   }
 }
