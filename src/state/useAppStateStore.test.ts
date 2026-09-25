@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { useAppStateStore } from './useAppStateStore';
-import { INITIAL_DATA } from '@/data/constants';
+import { WELCOME_PROJECT_ID, WELCOME_TICKET_ID } from '@/data/welcome';
 import { makeProject } from '@/test/fixtures';
 import { installMockLocket } from '@/test/mockLocket';
 
@@ -14,11 +14,13 @@ async function renderStore() {
 }
 
 describe('useAppStateStore (browser mode)', () => {
-  it('seeds the sample data on first run and persists it', async () => {
+  it('seeds the Welcome project on first run and persists it', async () => {
     const { result } = await renderStore();
-    expect(result.current.state.projects).toEqual(INITIAL_DATA.projects);
+    expect(result.current.state.projects.map((p) => p.id)).toEqual([WELCOME_PROJECT_ID]);
+    expect(result.current.state.tickets.map((t) => t.id)).toEqual([WELCOME_TICKET_ID]);
+    expect(result.current.state.counters).toEqual({ [WELCOME_PROJECT_ID]: 1 });
     const raw = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
-    expect(raw.projects).toHaveLength(INITIAL_DATA.projects.length);
+    expect(raw.projects.map((p: { id: string }) => p.id)).toEqual([WELCOME_PROJECT_ID]);
     expect(raw.settings).toBeUndefined();
   });
 
@@ -119,11 +121,12 @@ describe('useAppStateStore (browser mode)', () => {
     expect(result.current.state.projects.map((p) => p.id)).toEqual(['saved']);
   });
 
-  it('resetData restores the sample content', async () => {
+  it('resetData restores the Welcome project', async () => {
     const { result } = await renderStore();
     await act(() => result.current.deleteProject(result.current.state.projects[0].id));
+    expect(result.current.state.projects).toEqual([]);
     await act(() => result.current.resetData());
-    expect(result.current.state.projects).toEqual(INITIAL_DATA.projects);
+    expect(result.current.state.projects.map((p) => p.id)).toEqual([WELCOME_PROJECT_ID]);
   });
 });
 
@@ -156,10 +159,11 @@ describe('useAppStateStore (electron mode)', () => {
     expect(localStorage.getItem(LS_KEY)).toBeNull();
   });
 
-  it('seeds the database with samples when nothing exists', async () => {
+  it('seeds the database with the Welcome project when nothing exists', async () => {
     const mock = installMockLocket({ data: null });
     await renderStore();
-    expect(mock.data?.projects).toEqual(INITIAL_DATA.projects);
+    expect(mock.data?.projects.map((p) => p.id)).toEqual([WELCOME_PROJECT_ID]);
+    expect(mock.data?.tickets.map((t) => t.id)).toEqual([WELCOME_TICKET_ID]);
   });
 
   it('merges persisted settings and writes only persisted keys back', async () => {

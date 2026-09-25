@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { INITIAL_DATA } from '@/data/constants';
+import { DEFAULT_SETTINGS } from '@/data/constants';
+import { welcomeData } from '@/data/welcome';
 import {
   electronBackend,
   hasElectronBridge,
@@ -20,11 +21,12 @@ import type {
 const PERSISTED_SETTINGS_KEYS = ['mcpPort', 'workspacePath'] as const;
 type PersistedKey = (typeof PERSISTED_SETTINGS_KEYS)[number];
 
-const sampleData = (): PersistedData => ({
-  projects: INITIAL_DATA.projects,
-  tickets: INITIAL_DATA.tickets,
-  counters: INITIAL_DATA.counters,
-});
+const EMPTY_STATE: AppData = {
+  projects: [],
+  tickets: [],
+  counters: {},
+  settings: DEFAULT_SETTINGS,
+};
 
 /** One-time migration: state saved by the pre-SQLite renderer, if any. */
 function readLegacyLocalStorage(): PersistedData | null {
@@ -82,7 +84,7 @@ export function useAppStateStore(): AppStateApi {
     hasElectronBridge() ? electronBackend() : localBackend(),
   );
 
-  const [state, setState] = useState<AppData>(INITIAL_DATA);
+  const [state, setState] = useState<AppData>(EMPTY_STATE);
   const [hydrated, setHydrated] = useState(false);
   const currentUser = useCurrentUser();
 
@@ -95,8 +97,8 @@ export function useAppStateStore(): AppStateApi {
       try {
         let data = await be.load();
         if (!data) {
-          // First run: seed from the legacy localStorage payload or the samples.
-          data = readLegacyLocalStorage() ?? sampleData();
+          // First run: seed from the legacy localStorage payload or the welcome project.
+          data = readLegacyLocalStorage() ?? welcomeData();
           await be.replace(data);
         }
         if (hasElectronBridge()) localStorage.removeItem(LOCAL_STORAGE_KEY);
@@ -184,7 +186,7 @@ export function useAppStateStore(): AppStateApi {
         }
       },
       async resetData() {
-        const data = sampleData();
+        const data = welcomeData();
         await be.replace(data);
         patchData(() => data);
       },
