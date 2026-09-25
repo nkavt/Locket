@@ -58,5 +58,4 @@ export const PROJECT_COLORS = [
 export const DEFAULT_SETTINGS: Settings = {
   mcpPort: 7821,
   mcpRunning: false,
-  workspacePath: '',
 };

@@ -18,7 +18,7 @@ export interface MockLocket {
   emitLog: (line: string) => void;
 }
 
-const DEFAULT_SETTINGS: PersistedSettings = { mcpPort: 7821, workspacePath: '/tmp/locket' };
+const DEFAULT_SETTINGS: PersistedSettings = { mcpPort: 7821 };
 
 export function installMockLocket(
   init: Partial<Pick<MockLocket, 'data' | 'settings' | 'user'>> = {},

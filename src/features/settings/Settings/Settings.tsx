@@ -11,7 +11,6 @@ import { useSnackbar } from '@/state/useSnackbar';
 
 export interface SettingsFormValues {
   port: string;
-  workspacePath: string;
 }
 
 const DEFAULT_PORT = 7821;
@@ -24,10 +23,7 @@ export function Settings() {
 
   const form = useForm<SettingsFormValues>({
     mode: 'onChange',
-    defaultValues: {
-      port: String(settings.mcpPort || DEFAULT_PORT),
-      workspacePath: settings.workspacePath || '',
-    },
+    defaultValues: { port: String(settings.mcpPort || DEFAULT_PORT) },
   });
   const {
     reset,
@@ -38,29 +34,18 @@ export function Settings() {
   // Keep the form in sync when persisted settings arrive from Electron,
   // without clobbering fields the user is editing.
   useEffect(() => {
-    reset(
-      {
-        port: String(settings.mcpPort || DEFAULT_PORT),
-        workspacePath: settings.workspacePath || '',
-      },
-      { keepDirtyValues: true },
-    );
-  }, [settings.mcpPort, settings.workspacePath, reset]);
+    reset({ port: String(settings.mcpPort || DEFAULT_PORT) }, { keepDirtyValues: true });
+  }, [settings.mcpPort, reset]);
 
   const handleSave = () => {
     if (!isValid) return;
     const port = Number(getValues('port'));
-    const workspacePath = getValues('workspacePath').trim();
-    setSettings({ mcpPort: port, workspacePath });
-    reset({ port: String(port), workspacePath }, { keepValues: true });
+    setSettings({ mcpPort: port });
+    reset({ port: String(port) }, { keepValues: true });
     snack(t('settings.saved'), { severity: 'success' });
   };
 
-  const handleDiscard = () =>
-    reset({
-      port: String(settings.mcpPort || DEFAULT_PORT),
-      workspacePath: settings.workspacePath || '',
-    });
+  const handleDiscard = () => reset({ port: String(settings.mcpPort || DEFAULT_PORT) });
 
   return (
     <FormProvider {...form}>

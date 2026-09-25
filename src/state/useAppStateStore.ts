@@ -18,7 +18,7 @@ import type {
   TicketPatch,
 } from '@/types/electron-api';
 
-const PERSISTED_SETTINGS_KEYS = ['mcpPort', 'workspacePath'] as const;
+const PERSISTED_SETTINGS_KEYS = ['mcpPort'] as const;
 type PersistedKey = (typeof PERSISTED_SETTINGS_KEYS)[number];
 
 const EMPTY_STATE: AppData = {

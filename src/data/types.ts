@@ -35,7 +35,6 @@ export interface Ticket {
 export interface Settings {
   mcpPort: number;
   mcpRunning: boolean;
-  workspacePath: string;
 }
 
 export interface AppData {

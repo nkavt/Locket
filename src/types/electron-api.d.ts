@@ -2,7 +2,6 @@ import type { Comment, Project, Ticket } from '../data/types';
 
 export interface PersistedSettings {
   mcpPort: number;
-  workspacePath: string;
 }
 
 export interface PersistedData {

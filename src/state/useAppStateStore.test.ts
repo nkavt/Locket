@@ -167,7 +167,7 @@ describe('useAppStateStore (electron mode)', () => {
   });
 
   it('merges persisted settings and writes only persisted keys back', async () => {
-    const mock = installMockLocket({ settings: { mcpPort: 9000, workspacePath: '/w' } });
+    const mock = installMockLocket({ settings: { mcpPort: 9000 } });
     const { result } = renderHook(() => useAppStateStore());
     await waitFor(() => expect(result.current.state.settings.mcpPort).toBe(9000));
 

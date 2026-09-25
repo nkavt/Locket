@@ -142,10 +142,7 @@
     },
     "storage": {
       "title": "Storage",
-      "subtitle": "Tickets are stored as plain markdown files on disk.",
-      "workspacePath": "Workspace path",
-      "workspacePathHint": "Where ticket markdown files are stored",
-      "workspacePathEmpty": "Path cannot be empty",
+      "subtitle": "Projects, tickets and comments are stored in a local database on this machine.",
       "reset": "Reset workspace",
       "resetConfirm": {
         "title": "Reset workspace?",
