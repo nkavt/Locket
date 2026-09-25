@@ -1,29 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { memory, resetMemory } from '../test/memory-store';
+import { describe, expect, it, vi } from 'vitest';
+import { ticketFixture, useTestDb } from '../test/db';
 
-vi.mock('../db/store', () => import('../test/memory-store'));
+vi.mock('electron', () => ({ app: { getVersion: () => '0.0.0-test' } }));
 
 const { createProject, deleteProject, getProject, listProjects, updateProject } =
   await import('./projects');
+const { readSnapshot } = await import('./snapshot');
 const { NotFoundError, ValidationError } = await import('./errors');
 
-const ticket = (id: string, projectId: string) => ({
-  id,
-  projectId,
-  title: id,
-  description: '',
-  status: 'todo',
-  priority: 'medium',
-  labels: [],
-  due: null,
-  author: 'me',
-  created: '2026-01-01',
-  updated: '2026-01-01',
-  comments: [],
-});
-
 describe('projects service', () => {
-  beforeEach(() => resetMemory());
+  useTestDb();
 
   it('creates a project with defaults and a zeroed counter', async () => {
     const p = await createProject({ name: 'One', slug: 'one' });
@@ -35,15 +21,16 @@ describe('projects service', () => {
       color: '#1976d2',
       description: '# One\n\n',
     });
-    expect(memory.data.projects).toEqual([p]);
-    expect(memory.data.counters[p.id]).toBe(0);
+    const snap = await readSnapshot();
+    expect(snap.projects).toEqual([p]);
+    expect(snap.counters[p.id]).toBe(0);
   });
 
   it('rejects an invalid slug', async () => {
     await expect(createProject({ name: 'x', slug: 'Bad Slug' })).rejects.toBeInstanceOf(
       ValidationError,
     );
-    expect(memory.data.projects).toHaveLength(0);
+    expect((await readSnapshot()).projects).toHaveLength(0);
   });
 
   it('rejects a duplicate slug', async () => {
@@ -51,10 +38,16 @@ describe('projects service', () => {
     await expect(createProject({ name: 'Two', slug: 'one' })).rejects.toThrow(/already in use/);
   });
 
-  it('lists projects with ticket counts', async () => {
-    const p = await createProject({ name: 'One', slug: 'one' });
-    memory.data.tickets.push(ticket('one-1', p.id), ticket('one-2', p.id));
-    expect(await listProjects()).toEqual([{ ...p, ticketCount: 2 }]);
+  it('lists projects in creation order with ticket counts', async () => {
+    const a = await createProject({ name: 'A', slug: 'aa' });
+    const b = await createProject({ name: 'B', slug: 'bb' });
+    const { createTicket } = await import('./tickets');
+    await createTicket({ projectId: a.id, title: 'x', author: 'me' });
+    await createTicket({ projectId: a.id, title: 'y', author: 'me' });
+    expect(await listProjects()).toEqual([
+      { ...a, ticketCount: 2 },
+      { ...b, ticketCount: 0 },
+    ]);
   });
 
   it('gets a project or throws NotFoundError', async () => {
@@ -67,23 +60,34 @@ describe('projects service', () => {
     const p = await createProject({ name: 'One', slug: 'one' });
     const updated = await updateProject(p.id, { name: 'Renamed', color: '#000000' });
     expect(updated).toMatchObject({ name: 'Renamed', color: '#000000', slug: 'one' });
-    expect(memory.data.projects[0]).toEqual(updated);
+    expect(await getProject(p.id)).toEqual(updated);
     await expect(updateProject('nope', { name: 'x' })).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it('deletes a project with its tickets and counter', async () => {
-    const keep = await createProject({ name: 'Keep', slug: 'keep' });
-    const gone = await createProject({ name: 'Gone', slug: 'gone' });
-    memory.data.tickets.push(
-      ticket('keep-1', keep.id),
-      ticket('gone-1', gone.id),
-      ticket('gone-2', gone.id),
-    );
+  it('deletes a project with its tickets, comments and counter', async () => {
+    const { replaceSnapshot } = await import('./snapshot');
+    await replaceSnapshot({
+      projects: [
+        { id: 'keep', name: 'Keep', slug: 'keep', icon: '', color: '', description: '' },
+        { id: 'gone', name: 'Gone', slug: 'gone', icon: '', color: '', description: '' },
+      ],
+      tickets: [
+        ticketFixture({ id: 'keep-1', projectId: 'keep' }),
+        ticketFixture({
+          id: 'gone-1',
+          projectId: 'gone',
+          comments: [{ id: 1, author: 'me', ts: '2026-01-01T00:00:00.000Z', body: 'hi' }],
+        }),
+        ticketFixture({ id: 'gone-2', projectId: 'gone' }),
+      ],
+      counters: { keep: 1, gone: 2 },
+    });
 
-    expect(await deleteProject(gone.id)).toEqual({ deletedTickets: 2 });
-    expect(memory.data.projects.map((p) => p.id)).toEqual([keep.id]);
-    expect(memory.data.tickets.map((t) => t.id)).toEqual(['keep-1']);
-    expect(memory.data.counters).toEqual({ [keep.id]: 0 });
-    await expect(deleteProject(gone.id)).rejects.toBeInstanceOf(NotFoundError);
+    expect(await deleteProject('gone')).toEqual({ deletedTickets: 2 });
+    const snap = await readSnapshot();
+    expect(snap.projects.map((p) => p.id)).toEqual(['keep']);
+    expect(snap.tickets.map((t) => t.id)).toEqual(['keep-1']);
+    expect(snap.counters).toEqual({ keep: 1 });
+    await expect(deleteProject('gone')).rejects.toBeInstanceOf(NotFoundError);
   });
 });

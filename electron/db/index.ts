@@ -1,4 +1,4 @@
-export { getDataSource, initDb, type InitDbOptions } from './data-source';
-export { withDbLock } from './lock';
-export { loadData, mutate, readData, saveData } from './store';
+export { closeDb, getDataSource, initDb, type InitDbOptions } from './data-source';
+export * as repos from './repos';
+export { withReader, withTransaction } from './transaction';
 export * from './types';

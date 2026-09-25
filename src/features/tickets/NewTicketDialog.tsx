@@ -59,8 +59,8 @@ export function NewTicketDialog({ open, project, onClose, onCreated }: NewTicket
     if (open) reset(DEFAULTS);
   }, [open, reset]);
 
-  const submit = handleSubmit((v) => {
-    const created = addTicket(project.id, {
+  const submit = handleSubmit(async (v) => {
+    const created = await addTicket(project.id, {
       title: v.title.trim(),
       description: v.description,
       status: v.status,
@@ -69,7 +69,7 @@ export function NewTicketDialog({ open, project, onClose, onCreated }: NewTicket
       due: v.due || null,
     });
     onClose();
-    if (created) onCreated?.(created);
+    onCreated?.(created);
   });
 
   return (

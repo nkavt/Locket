@@ -46,8 +46,8 @@ export function installMockLocket(
       user: { get: async () => mock.user },
       data: {
         get: async () => mock.data,
-        set: async (data) => {
-          mock.data = data;
+        replace: async (data) => {
+          mock.data = structuredClone(data);
         },
         onChanged: (cb) => {
           mock.dataListeners.add(cb);

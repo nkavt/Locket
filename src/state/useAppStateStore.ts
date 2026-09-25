@@ -1,26 +1,45 @@
 import { useEffect, useMemo, useState } from 'react';
 import { INITIAL_DATA } from '@/data/constants';
+import {
+  electronBackend,
+  hasElectronBridge,
+  localBackend,
+  LOCAL_STORAGE_KEY,
+  type DataBackend,
+} from './backend';
+import * as apply from './localData';
 import { useCurrentUser } from './useCurrentUser';
-import type { AppData, Comment, Project, Settings, Ticket } from '@/data/types';
-
-const LS_KEY = 'locket-app-state-v1';
-
-type PersistableData = Omit<AppData, 'settings'>;
+import type { AppData, Project, Settings, Ticket } from '@/data/types';
+import type {
+  NewProjectInput,
+  PersistedData,
+  ProjectPatch,
+  TicketPatch,
+} from '@/types/electron-api';
 
 const PERSISTED_SETTINGS_KEYS = ['mcpPort', 'workspacePath'] as const;
 type PersistedKey = (typeof PERSISTED_SETTINGS_KEYS)[number];
 
-function loadState(): AppData {
+const sampleData = (): PersistedData => ({
+  projects: INITIAL_DATA.projects,
+  tickets: INITIAL_DATA.tickets,
+  counters: INITIAL_DATA.counters,
+});
+
+/** One-time migration: state saved by the pre-SQLite renderer, if any. */
+function readLegacyLocalStorage(): PersistedData | null {
   try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Partial<PersistableData>;
-      return { ...INITIAL_DATA, ...parsed, settings: INITIAL_DATA.settings };
-    }
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PersistedData>;
+    return {
+      projects: parsed.projects ?? [],
+      tickets: parsed.tickets ?? [],
+      counters: parsed.counters ?? {},
+    };
   } catch {
-    // fall through
+    return null;
   }
-  return INITIAL_DATA;
 }
 
 function pickPersisted(patch: Partial<Settings>): Partial<Settings> {
@@ -35,85 +54,71 @@ function pickPersisted(patch: Partial<Settings>): Partial<Settings> {
 
 export interface AppStateApi {
   state: AppData;
-  /** False until the initial load from SQLite (Electron) has finished. */
+  /** False until the initial load from the backend has finished. */
   hydrated: boolean;
-  addProject: (p: Project) => void;
-  updateProject: (id: string, patch: Partial<Project>) => void;
-  deleteProject: (id: string) => void;
-  addTicket: (projectId: string, data: Partial<Ticket> & { title: string }) => Ticket | null;
-  updateTicket: (id: string, patch: Partial<Ticket>) => void;
-  deleteTicket: (id: string) => void;
-  addComment: (ticketId: string, body: string, author?: string) => void;
-  deleteComment: (ticketId: string, commentId: number) => void;
+  addProject: (input: NewProjectInput) => Promise<Project>;
+  updateProject: (id: string, patch: ProjectPatch) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
+  addTicket: (
+    projectId: string,
+    data: Partial<Omit<Ticket, 'id' | 'projectId'>> & { title: string },
+  ) => Promise<Ticket>;
+  updateTicket: (id: string, patch: TicketPatch) => Promise<void>;
+  deleteTicket: (id: string) => Promise<void>;
+  addComment: (ticketId: string, body: string, author?: string) => Promise<void>;
+  deleteComment: (ticketId: string, commentId: number) => Promise<void>;
   setSettings: (patch: Partial<Settings>) => void;
-  resetData: () => void;
+  resetData: () => Promise<void>;
 }
 
-const hasDb = (): boolean => typeof window !== 'undefined' && !!window.locket?.data;
-
 /**
- * The single source of truth for app data. Handles persistence to SQLite
- * (Electron) or localStorage (browser). Consume it through
+ * The single source of truth for app data. Every mutation is decided by the
+ * backend (main-process services in Electron, localStorage in a browser) and
+ * the returned entity is folded into React state. Consume it through
  * `AppStateProvider` and the hooks in `useAppState.ts`, not directly.
  */
 export function useAppStateStore(): AppStateApi {
-  const [state, setState] = useState<AppData>(loadState);
+  const [be] = useState<DataBackend>(() =>
+    hasElectronBridge() ? electronBackend() : localBackend(),
+  );
+
+  const [state, setState] = useState<AppData>(INITIAL_DATA);
+  const [hydrated, setHydrated] = useState(false);
   const currentUser = useCurrentUser();
-  // In Electron, don't persist until the initial load from SQLite has finished,
-  // otherwise the default state would overwrite the database.
-  const [hydrated, setHydrated] = useState(() => !hasDb());
+
+  const patchData = (fn: (d: PersistedData) => PersistedData) =>
+    setState((s) => ({ ...fn(s), settings: s.settings }));
 
   useEffect(() => {
-    if (!hasDb()) return;
-    window.locket.data
-      .get()
-      .then((persisted) => {
-        if (persisted) {
-          setState((s) => ({ ...s, ...persisted }));
-        }
-        // First run: `persisted` is null and the state loaded from
-        // localStorage (or INITIAL_DATA) gets written to SQLite by the
-        // persist effect below — that is the one-time migration.
-        localStorage.removeItem(LS_KEY);
-      })
-      .catch((err) => {
-        console.error('[data] failed to load from database:', err);
-      })
-      .finally(() => setHydrated(true));
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    const { settings: _omit, ...persistable } = state;
-    void _omit;
-    if (hasDb()) {
-      window.locket.data.set(persistable).catch((err) => {
-        console.error('[data] failed to save to database:', err);
-      });
-    } else {
+    let cancelled = false;
+    (async () => {
       try {
-        localStorage.setItem(LS_KEY, JSON.stringify(persistable));
-      } catch {
-        // ignore
+        let data = await be.load();
+        if (!data) {
+          // First run: seed from the legacy localStorage payload or the samples.
+          data = readLegacyLocalStorage() ?? sampleData();
+          await be.replace(data);
+        }
+        if (hasElectronBridge()) localStorage.removeItem(LOCAL_STORAGE_KEY);
+        if (!cancelled) patchData(() => data);
+      } catch (err) {
+        console.error('[data] failed to load:', err);
+      } finally {
+        if (!cancelled) setHydrated(true);
       }
-    }
-  }, [state, hydrated]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [be]);
 
-  // Data changed outside the renderer (MCP tool calls): adopt it as-is.
-  useEffect(() => {
-    if (!hasDb() || !window.locket.data.onChanged) return;
-    return window.locket.data.onChanged((data) => {
-      setState((s) => ({ ...s, ...data }));
-    });
-  }, []);
+  // Data changed outside this renderer (MCP tool calls, other windows): adopt it as-is.
+  useEffect(() => be.onChanged?.((data) => patchData(() => data)), [be]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.locket) return;
     void window.locket.settings.get().then((persisted) => {
-      setState((s) => ({
-        ...s,
-        settings: { ...s.settings, ...persisted },
-      }));
+      setState((s) => ({ ...s, settings: { ...s.settings, ...persisted } }));
     });
   }, []);
 
@@ -121,92 +126,51 @@ export function useAppStateStore(): AppStateApi {
     () => ({
       state,
       hydrated,
-      addProject(p) {
-        setState((s) => ({
-          ...s,
-          projects: [...s.projects, p],
-          counters: { ...s.counters, [p.id]: 0 },
-        }));
+      async addProject(input) {
+        const project = await be.createProject(input);
+        patchData((d) => apply.withProject(d, project));
+        return project;
       },
-      updateProject(id, patch) {
-        setState((s) => ({
-          ...s,
-          projects: s.projects.map((p) => (p.id === id ? { ...p, ...patch } : p)),
-        }));
+      async updateProject(id, patch) {
+        const project = await be.updateProject(id, patch);
+        patchData((d) => apply.withProject(d, project));
       },
-      deleteProject(id) {
-        setState((s) => ({
-          ...s,
-          projects: s.projects.filter((p) => p.id !== id),
-          tickets: s.tickets.filter((t) => t.projectId !== id),
-        }));
+      async deleteProject(id) {
+        await be.deleteProject(id);
+        patchData((d) => apply.withoutProject(d, id));
       },
-      addTicket(projectId, data) {
-        const proj = state.projects.find((p) => p.id === projectId);
-        if (!proj) return null;
-        const next = (state.counters[projectId] || 0) + 1;
-        const id = `${proj.slug}-${next}`;
-        const today = new Date().toISOString().slice(0, 10);
-        const ticket: Ticket = {
-          id,
+      async addTicket(projectId, data) {
+        const ticket = await be.createTicket({
           projectId,
           title: data.title || 'Untitled',
-          description: data.description || '',
-          status: data.status || 'todo',
-          priority: data.priority || 'medium',
-          labels: data.labels || [],
-          due: data.due || null,
+          description: data.description,
+          status: data.status,
+          priority: data.priority,
+          labels: data.labels,
+          due: data.due,
           author: data.author || currentUser,
-          created: today,
-          updated: today,
-          comments: [],
-        };
-        setState((s) => ({
-          ...s,
-          tickets: [...s.tickets, ticket],
-          counters: { ...s.counters, [projectId]: next },
+        });
+        patchData((d) => ({
+          ...apply.withTicket(d, ticket),
+          counters: { ...d.counters, [projectId]: (d.counters[projectId] || 0) + 1 },
         }));
         return ticket;
       },
-      updateTicket(id, patch) {
-        const today = new Date().toISOString().slice(0, 10);
-        setState((s) => ({
-          ...s,
-          tickets: s.tickets.map((t) => (t.id === id ? { ...t, ...patch, updated: today } : t)),
-        }));
+      async updateTicket(id, patch) {
+        const ticket = await be.updateTicket(id, patch);
+        patchData((d) => apply.withTicket(d, ticket));
       },
-      deleteTicket(id) {
-        setState((s) => ({
-          ...s,
-          tickets: s.tickets.filter((t) => t.id !== id),
-        }));
+      async deleteTicket(id) {
+        await be.deleteTicket(id);
+        patchData((d) => apply.withoutTicket(d, id));
       },
-      addComment(ticketId, body, author = currentUser) {
-        const c: Comment = {
-          id: Date.now(),
-          author,
-          ts: new Date().toISOString(),
-          body,
-        };
-        setState((s) => ({
-          ...s,
-          tickets: s.tickets.map((t) =>
-            t.id === ticketId ? { ...t, comments: [...(t.comments || []), c] } : t,
-          ),
-        }));
+      async addComment(ticketId, body, author = currentUser) {
+        const comment = await be.addComment(ticketId, body, author);
+        patchData((d) => apply.withComment(d, ticketId, comment));
       },
-      deleteComment(ticketId, commentId) {
-        setState((s) => ({
-          ...s,
-          tickets: s.tickets.map((t) =>
-            t.id === ticketId
-              ? {
-                  ...t,
-                  comments: t.comments.filter((c) => c.id !== commentId),
-                }
-              : t,
-          ),
-        }));
+      async deleteComment(ticketId, commentId) {
+        await be.deleteComment(ticketId, commentId);
+        patchData((d) => apply.withoutComment(d, ticketId, commentId));
       },
       setSettings(patch) {
         setState((s) => ({ ...s, settings: { ...s.settings, ...patch } }));
@@ -219,12 +183,13 @@ export function useAppStateStore(): AppStateApi {
           );
         }
       },
-      resetData() {
-        localStorage.removeItem(LS_KEY);
-        setState(INITIAL_DATA);
+      async resetData() {
+        const data = sampleData();
+        await be.replace(data);
+        patchData(() => data);
       },
     }),
-    [state, hydrated, currentUser],
+    [state, hydrated, currentUser, be],
   );
 
   return api;

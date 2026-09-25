@@ -11,7 +11,7 @@ import { TicketEntity } from './entities/ticket.entity';
 let dataSource: DataSource | null = null;
 
 export interface InitDbOptions {
-  /** SQLite file path. Defaults to `locket.db` in the app's userData directory. */
+  /** SQLite file path or ':memory:'. Defaults to `locket.db` in the app's userData directory. */
   database?: string;
 }
 
@@ -23,6 +23,11 @@ export const initDb = async (options: InitDbOptions = {}): Promise<void> => {
     synchronize: true,
   });
   await dataSource.initialize();
+};
+
+export const closeDb = async (): Promise<void> => {
+  await dataSource?.destroy();
+  dataSource = null;
 };
 
 export const getDataSource = (): DataSource => {

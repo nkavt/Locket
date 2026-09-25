@@ -1,8 +1,8 @@
-import { mutate, readData } from '../db/store';
+import { repos, withReader, withTransaction } from '../db';
 import type { NewTicketInput, PersistedTicket, TicketFilter, TicketPatch } from '../db/types';
 import { NotFoundError, today } from './errors';
 
-/** Pure predicate so the filter can be reused and tested without a store. */
+/** Pure predicate for the parts of the filter that are not plain column matches. */
 export const matchesFilter = (t: PersistedTicket, filter: TicketFilter): boolean => {
   const q = filter.query?.trim().toLowerCase();
   return (
@@ -17,23 +17,24 @@ export const matchesFilter = (t: PersistedTicket, filter: TicketFilter): boolean
   );
 };
 
-export const listTickets = async (filter: TicketFilter = {}): Promise<PersistedTicket[]> => {
-  const data = await readData();
-  return data.tickets.filter((t) => matchesFilter(t, filter));
-};
+export const listTickets = (filter: TicketFilter = {}): Promise<PersistedTicket[]> =>
+  withReader(async (em) => {
+    const rows = await repos.tickets.findAll(em, filter);
+    return filter.label || filter.query ? rows.filter((t) => matchesFilter(t, filter)) : rows;
+  });
 
-export const getTicket = async (id: string): Promise<PersistedTicket> => {
-  const data = await readData();
-  const ticket = data.tickets.find((t) => t.id === id);
-  if (!ticket) throw new NotFoundError('Ticket', id);
-  return ticket;
-};
+export const getTicket = (id: string): Promise<PersistedTicket> =>
+  withReader(async (em) => {
+    const ticket = await repos.tickets.findById(em, id);
+    if (!ticket) throw new NotFoundError('Ticket', id);
+    return ticket;
+  });
 
 export const createTicket = (input: NewTicketInput): Promise<PersistedTicket> =>
-  mutate((data) => {
-    const project = data.projects.find((p) => p.id === input.projectId);
+  withTransaction(async (em) => {
+    const project = await repos.projects.findById(em, input.projectId);
     if (!project) throw new NotFoundError('Project', input.projectId);
-    const next = (data.counters[project.id] || 0) + 1;
+    const next = await repos.counters.next(em, project.id);
     const now = today();
     const ticket: PersistedTicket = {
       id: `${project.slug}-${next}`,
@@ -49,22 +50,22 @@ export const createTicket = (input: NewTicketInput): Promise<PersistedTicket> =>
       updated: now,
       comments: [],
     };
-    data.tickets.push(ticket);
-    data.counters[project.id] = next;
+    await repos.tickets.insert(em, ticket);
     return ticket;
   });
 
 export const updateTicket = (id: string, patch: TicketPatch): Promise<PersistedTicket> =>
-  mutate((data) => {
-    const ticket = data.tickets.find((t) => t.id === id);
+  withTransaction(async (em) => {
+    const ticket = await repos.tickets.findById(em, id);
     if (!ticket) throw new NotFoundError('Ticket', id);
-    Object.assign(ticket, patch, { updated: today() });
-    return ticket;
+    const changes = { ...patch, updated: today() };
+    await repos.tickets.update(em, id, changes);
+    return { ...ticket, ...changes };
   });
 
 export const deleteTicket = (id: string): Promise<void> =>
-  mutate((data) => {
-    const idx = data.tickets.findIndex((t) => t.id === id);
-    if (idx === -1) throw new NotFoundError('Ticket', id);
-    data.tickets.splice(idx, 1);
+  withTransaction(async (em) => {
+    if (!(await repos.tickets.findById(em, id))) throw new NotFoundError('Ticket', id);
+    await repos.comments.removeByTicketIds(em, [id]);
+    await repos.tickets.remove(em, id);
   });

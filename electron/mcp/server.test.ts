@@ -1,15 +1,14 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { memory, resetMemory } from '../test/memory-store';
+import { describe, expect, it, vi } from 'vitest';
+import { useTestDb } from '../test/db';
 
 vi.mock('electron', () => ({ app: { getVersion: () => '0.0.0-test' } }));
-// Services run for real; only the SQLite store is swapped for memory.
-vi.mock('../db/store', () => import('../test/memory-store'));
 
 const { createMcpServer } = await import('./server');
 const { ticketToMarkdown } = await import('./format');
+const { readSnapshot } = await import('../services/snapshot');
 
 type ToolResult = Awaited<ReturnType<Client['callTool']>>;
 
@@ -35,47 +34,47 @@ async function connect(hooks = {}) {
   return { client, server };
 }
 
-beforeEach(() => {
-  resetMemory({
-    projects: [
-      { id: 'p1', name: 'One', slug: 'one', icon: 'bolt', color: '#000', description: '' },
-      { id: 'p2', name: 'Two', slug: 'two', icon: 'bolt', color: '#000', description: '' },
-    ],
-    tickets: [
-      {
-        id: 'one-1',
-        projectId: 'p1',
-        title: 'Fix the bug',
-        description: 'desc',
-        status: 'todo',
-        priority: 'high',
-        labels: ['bug'],
-        due: null,
-        author: 'Ari',
-        created: '2026-01-01',
-        updated: '2026-01-01',
-        comments: [],
-      },
-      {
-        id: 'two-1',
-        projectId: 'p2',
-        title: 'Write docs',
-        description: '',
-        status: 'done',
-        priority: 'low',
-        labels: [],
-        due: '2026-02-01',
-        author: 'Sam',
-        created: '2026-01-01',
-        updated: '2026-01-01',
-        comments: [],
-      },
-    ],
-    counters: { p1: 1, p2: 1 },
-  });
+const SEED = () => ({
+  projects: [
+    { id: 'p1', name: 'One', slug: 'one', icon: 'bolt', color: '#000', description: '' },
+    { id: 'p2', name: 'Two', slug: 'two', icon: 'bolt', color: '#000', description: '' },
+  ],
+  tickets: [
+    {
+      id: 'one-1',
+      projectId: 'p1',
+      title: 'Fix the bug',
+      description: 'desc',
+      status: 'todo',
+      priority: 'high',
+      labels: ['bug'],
+      due: null,
+      author: 'Ari',
+      created: '2026-01-01',
+      updated: '2026-01-01',
+      comments: [],
+    },
+    {
+      id: 'two-1',
+      projectId: 'p2',
+      title: 'Write docs',
+      description: '',
+      status: 'done',
+      priority: 'low',
+      labels: [],
+      due: '2026-02-01',
+      author: 'Sam',
+      created: '2026-01-01',
+      updated: '2026-01-01',
+      comments: [],
+    },
+  ],
+  counters: { p1: 1, p2: 1 },
 });
 
 describe('MCP server', () => {
+  useTestDb(SEED);
+
   it('advertises the expected tools and resources', async () => {
     const { client } = await connect();
     const tools = (await client.listTools()).tools.map((t) => t.name);
@@ -161,7 +160,7 @@ describe('MCP server', () => {
       await client.callTool({ name: 'delete_ticket', arguments: { id: 'one-2' } }),
     );
     expect(deleted).toEqual({ deleted: 'one-2' });
-    expect(memory.data.tickets.map((t) => t.id)).toEqual(['one-1', 'two-1']);
+    expect((await readSnapshot()).tickets.map((t) => t.id)).toEqual(['one-1', 'two-1']);
     expect(onDataChanged).toHaveBeenCalledTimes(4);
   });
 
@@ -193,8 +192,9 @@ describe('MCP server', () => {
       await client.callTool({ name: 'delete_project', arguments: { id: 'p1' } }),
     );
     expect(deleted).toEqual({ deleted: 'p1', deletedTickets: 1 });
-    expect(memory.data.projects.map((p) => p.id)).toEqual(['p2', created.id]);
-    expect(memory.data.tickets.map((t) => t.id)).toEqual(['two-1']);
+    const snap = await readSnapshot();
+    expect(snap.projects.map((p) => p.id)).toEqual(['p2', created.id]);
+    expect(snap.tickets.map((t) => t.id)).toEqual(['two-1']);
     expect(onDataChanged).toHaveBeenCalledTimes(3);
   });
 

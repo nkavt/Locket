@@ -1,10 +1,10 @@
 import { ipcMain } from 'electron';
-import { loadData, saveData, withDbLock } from '../db';
 import type {
   NewProjectInput,
   NewTicketInput,
   PersistedData,
   ProjectPatch,
+  TicketFilter,
   TicketPatch,
 } from '../db/types';
 import * as services from '../services';
@@ -12,18 +12,20 @@ import * as services from '../services';
 /**
  * Renderer-facing data API. Every mutation goes through the same services the
  * MCP tools use, so both sides share validation, id assignment and cascades.
- * `notify` is called with the fresh dataset after each mutation so every
- * window (not just the one that asked) can adopt it.
+ * `notify` receives the fresh snapshot after each mutation so every window
+ * (not just the one that asked) can adopt it.
  */
 export function registerDataIpc(notify: (data: PersistedData) => void): void {
   const changed = async <T>(result: T): Promise<T> => {
-    notify(await services.readData());
+    notify(await services.readSnapshot());
     return result;
   };
 
-  // Whole-document access, used by the renderer store for hydration and full saves.
-  ipcMain.handle('data:get', () => withDbLock(() => loadData()));
-  ipcMain.handle('data:set', (_e, data: PersistedData) => withDbLock(() => saveData(data)));
+  // Whole-workspace access: hydration, first-run seeding and reset only.
+  ipcMain.handle('data:get', () => services.readSnapshotIfInitialized());
+  ipcMain.handle('data:replace', async (_e, data: PersistedData) =>
+    changed(await services.replaceSnapshot(data)),
+  );
 
   ipcMain.handle('projects:list', () => services.listProjects());
   ipcMain.handle('projects:create', async (_e, input: NewProjectInput) =>
@@ -36,9 +38,7 @@ export function registerDataIpc(notify: (data: PersistedData) => void): void {
     changed(await services.deleteProject(id)),
   );
 
-  ipcMain.handle('tickets:list', (_e, filter?: services.TicketFilter) =>
-    services.listTickets(filter),
-  );
+  ipcMain.handle('tickets:list', (_e, filter?: TicketFilter) => services.listTickets(filter));
   ipcMain.handle('tickets:get', (_e, id: string) => services.getTicket(id));
   ipcMain.handle('tickets:create', async (_e, input: NewTicketInput) =>
     changed(await services.createTicket(input)),

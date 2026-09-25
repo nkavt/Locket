@@ -1,6 +1,6 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { readData } from '../db/store';
 import type { PersistedData } from '../db/types';
+import { readSnapshot } from '../services/snapshot';
 
 export interface McpServerHooks {
   /** Called after any tool mutates data, with the fresh dataset. */
@@ -19,7 +19,7 @@ export interface McpContext {
 
 export const createContext = (hooks: McpServerHooks): McpContext => ({
   log: (line) => hooks.log?.(line),
-  changed: async () => hooks.onDataChanged?.(await readData()),
+  changed: async () => hooks.onDataChanged?.(await readSnapshot()),
 });
 
 export const DEFAULT_AUTHOR = 'AI agent';

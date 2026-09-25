@@ -72,9 +72,11 @@ declare global {
         get: () => Promise<string>;
       };
       data: {
+        /** Whole workspace, or null on first run before anything was written. */
         get: () => Promise<PersistedData | null>;
-        set: (data: PersistedData) => Promise<void>;
-        /** Fires when the MCP server (or anything outside the renderer) changed the data. */
+        /** Replace the whole workspace: first-run seeding and reset only. */
+        replace: (data: PersistedData) => Promise<void>;
+        /** Fires after any change, including ones made by the MCP server. */
         onChanged: (cb: (data: PersistedData) => void) => Unsubscribe;
       };
       /** Per-entity operations backed by the main-process services (shared with MCP). */

@@ -37,8 +37,9 @@ contextBridge.exposeInMainWorld('locket', {
   },
   data: {
     get: (): Promise<PersistedData | null> => ipcRenderer.invoke('data:get'),
-    set: (data: PersistedData): Promise<void> => ipcRenderer.invoke('data:set', data),
-    /** Fires when something other than the renderer (e.g. the MCP server) changed the data. */
+    /** Replace the whole workspace: first-run seeding and reset only. */
+    replace: (data: PersistedData): Promise<void> => ipcRenderer.invoke('data:replace', data),
+    /** Fires after any change made outside this renderer call (MCP tools, other windows). */
     onChanged: (cb: (data: PersistedData) => void): Unsubscribe =>
       subscribe<PersistedData>('data:changed', cb),
   },

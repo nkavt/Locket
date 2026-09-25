@@ -1,4 +1,4 @@
-import { mutate, readData } from '../db/store';
+import { repos, withReader, withTransaction } from '../db';
 import {
   SLUG_RE,
   type NewProjectInput,
@@ -11,27 +11,28 @@ export interface ProjectSummary extends PersistedProject {
   ticketCount: number;
 }
 
-export const listProjects = async (): Promise<ProjectSummary[]> => {
-  const data = await readData();
-  return data.projects.map((p) => ({
-    ...p,
-    ticketCount: data.tickets.filter((t) => t.projectId === p.id).length,
-  }));
-};
+export const listProjects = (): Promise<ProjectSummary[]> =>
+  withReader(async (em) => {
+    const [projects, counts] = await Promise.all([
+      repos.projects.findAll(em),
+      repos.tickets.countByProject(em),
+    ]);
+    return projects.map((p) => ({ ...p, ticketCount: counts[p.id] ?? 0 }));
+  });
 
-export const getProject = async (id: string): Promise<PersistedProject> => {
-  const data = await readData();
-  const project = data.projects.find((p) => p.id === id);
-  if (!project) throw new NotFoundError('Project', id);
-  return project;
-};
+export const getProject = (id: string): Promise<PersistedProject> =>
+  withReader(async (em) => {
+    const project = await repos.projects.findById(em, id);
+    if (!project) throw new NotFoundError('Project', id);
+    return project;
+  });
 
 export const createProject = (input: NewProjectInput): Promise<PersistedProject> =>
-  mutate((data) => {
+  withTransaction(async (em) => {
     if (!SLUG_RE.test(input.slug)) {
       throw new ValidationError(`Invalid slug "${input.slug}": use 2-12 chars of a-z, 0-9 or "-"`);
     }
-    if (data.projects.some((p) => p.slug === input.slug)) {
+    if (await repos.projects.findBySlug(em, input.slug)) {
       throw new ValidationError(`Slug "${input.slug}" already in use`);
     }
     const project: PersistedProject = {
@@ -42,27 +43,27 @@ export const createProject = (input: NewProjectInput): Promise<PersistedProject>
       color: input.color ?? '#1976d2',
       description: input.description ?? `# ${input.name}\n\n`,
     };
-    data.projects.push(project);
-    data.counters[project.id] = 0;
+    await repos.projects.insert(em, project);
+    await repos.counters.set(em, project.id, 0);
     return project;
   });
 
 export const updateProject = (id: string, patch: ProjectPatch): Promise<PersistedProject> =>
-  mutate((data) => {
-    const project = data.projects.find((p) => p.id === id);
+  withTransaction(async (em) => {
+    const project = await repos.projects.findById(em, id);
     if (!project) throw new NotFoundError('Project', id);
-    Object.assign(project, patch);
-    return project;
+    await repos.projects.update(em, id, patch);
+    return { ...project, ...patch };
   });
 
-/** Delete a project and every ticket in it. */
+/** Delete a project and every ticket (and comment) in it. */
 export const deleteProject = (id: string): Promise<{ deletedTickets: number }> =>
-  mutate((data) => {
-    const idx = data.projects.findIndex((p) => p.id === id);
-    if (idx === -1) throw new NotFoundError('Project', id);
-    data.projects.splice(idx, 1);
-    const before = data.tickets.length;
-    data.tickets = data.tickets.filter((t) => t.projectId !== id);
-    delete data.counters[id];
-    return { deletedTickets: before - data.tickets.length };
+  withTransaction(async (em) => {
+    if (!(await repos.projects.findById(em, id))) throw new NotFoundError('Project', id);
+    const ticketIds = await repos.tickets.findIdsByProject(em, id);
+    await repos.comments.removeByTicketIds(em, ticketIds);
+    await repos.tickets.removeByIds(em, ticketIds);
+    await repos.counters.remove(em, id);
+    await repos.projects.remove(em, id);
+    return { deletedTickets: ticketIds.length };
   });

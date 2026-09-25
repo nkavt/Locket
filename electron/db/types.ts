@@ -39,8 +39,6 @@ export interface PersistedData {
   counters: Record<string, number>;
 }
 
-export const emptyData = (): PersistedData => ({ projects: [], tickets: [], counters: {} });
-
 export interface NewProjectInput {
   name: string;
   slug: string;

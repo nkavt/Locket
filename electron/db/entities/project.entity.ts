@@ -4,9 +4,8 @@ import { Column, Entity, PrimaryColumn } from 'typeorm';
 export class ProjectEntity {
   @PrimaryColumn('text') id!: string;
   @Column('text') name!: string;
-  @Column('text') slug!: string;
+  @Column({ type: 'text', unique: true }) slug!: string;
   @Column('text') icon!: string;
   @Column('text') color!: string;
   @Column('text') description!: string;
-  @Column('integer') position!: number;
 }
