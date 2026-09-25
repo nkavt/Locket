@@ -50,9 +50,19 @@ export const withComment = (
   comment: Comment,
 ): PersistedData => ({
   ...d,
-  tickets: d.tickets.map((t) =>
-    t.id === ticketId ? { ...t, comments: [...t.comments, comment], updated: today() } : t,
-  ),
+  tickets: d.tickets.map((t) => {
+    if (t.id !== ticketId) return t;
+    // The Electron bridge broadcasts the fresh snapshot before the call resolves,
+    // so the comment may already be present: replace it instead of appending twice.
+    const exists = t.comments.some((c) => c.id === comment.id);
+    return {
+      ...t,
+      comments: exists
+        ? t.comments.map((c) => (c.id === comment.id ? comment : c))
+        : [...t.comments, comment],
+      updated: today(),
+    };
+  }),
 });
 
 export const withoutComment = (
