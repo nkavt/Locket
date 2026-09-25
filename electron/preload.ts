@@ -4,7 +4,6 @@ import type { McpLogLine, McpStatus } from './mcp/http';
 
 interface PersistedSettings {
   mcpPort: number;
-  workspacePath: string;
 }
 
 type Unsubscribe = () => void;

@@ -279,5 +279,5 @@ export const INITIAL_DATA: AppData = {
   projects: SAMPLE_PROJECTS,
   tickets: SAMPLE_TICKETS,
   counters: { locket: 7, website: 2, docs: 1 },
-  settings: { mcpPort: 7821, mcpRunning: false, workspacePath: '' },
+  settings: { mcpPort: 7821, mcpRunning: false },
 };

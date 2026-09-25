@@ -6,7 +6,7 @@ import { installMockLocket } from '@/test/mockLocket';
 import { act, renderWithProviders, screen, userEvent, waitFor } from '@/test/render';
 
 function Form({ children }: { children: ReactNode }) {
-  const form = useForm({ mode: 'onChange', defaultValues: { port: '7821', workspacePath: '/w' } });
+  const form = useForm({ mode: 'onChange', defaultValues: { port: '7821' } });
   return <FormProvider {...form}>{children}</FormProvider>;
 }
 

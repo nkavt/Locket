@@ -9,15 +9,11 @@ import { McpHost } from './mcp/http';
 
 interface PersistedSettings {
   mcpPort: number;
-  workspacePath: string;
 }
 
 const getSettingsPath = (): string => path.join(app.getPath('userData'), 'settings.json');
 
-const getDefaults = (): PersistedSettings => ({
-  mcpPort: 7821,
-  workspacePath: path.join(app.getPath('userData'), 'workspace'),
-});
+const getDefaults = (): PersistedSettings => ({ mcpPort: 7821 });
 
 const writeFile = async (settings: PersistedSettings): Promise<void> => {
   await fs.mkdir(path.dirname(getSettingsPath()), { recursive: true });
@@ -28,8 +24,9 @@ const readSettings = async (): Promise<PersistedSettings> => {
   const defaults = getDefaults();
   try {
     const raw = await fs.readFile(getSettingsPath(), 'utf8');
+    // Only known keys survive, so settings dropped in newer versions fall out of the file.
     const parsed = JSON.parse(raw) as Partial<PersistedSettings>;
-    return { ...defaults, ...parsed };
+    return { ...defaults, mcpPort: parsed.mcpPort ?? defaults.mcpPort };
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code;
     if (code === 'ENOENT') {
@@ -46,11 +43,6 @@ const validatePatch = (patch: Partial<PersistedSettings>): void => {
     const p = patch.mcpPort;
     if (!Number.isInteger(p) || p! < 1024 || p! > 65535) {
       throw new Error(`Invalid mcpPort: ${p}`);
-    }
-  }
-  if ('workspacePath' in patch) {
-    if (typeof patch.workspacePath !== 'string' || patch.workspacePath.length === 0) {
-      throw new Error('workspacePath must be a non-empty string');
     }
   }
 };

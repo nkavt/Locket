@@ -7,7 +7,7 @@ const LS_KEY = 'locket-app-state-v1';
 
 type PersistableData = Omit<AppData, 'settings'>;
 
-const PERSISTED_SETTINGS_KEYS = ['mcpPort', 'workspacePath'] as const;
+const PERSISTED_SETTINGS_KEYS = ['mcpPort'] as const;
 type PersistedKey = (typeof PERSISTED_SETTINGS_KEYS)[number];
 
 function loadState(): AppData {
