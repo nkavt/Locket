@@ -74,6 +74,20 @@ src/
 
 `settings.json` sits next to it. **Reset workspace** in Settings wipes the database and recreates the Welcome project.
 
+## Releasing
+
+Releases are built by GitHub Actions from version tags. Bump the version in `package.json` through a normal PR, then tag the merge commit on `main`:
+
+```sh
+git checkout main && git pull
+git tag v0.4.3
+git push origin v0.4.3
+```
+
+The workflow runs the tests, packages the macOS app for Apple silicon and Intel, and publishes a GitHub Release named after the tag with the `.dmg` and `.zip` files attached. The tag must match the version in `package.json` or the build fails.
+
+Builds are not code-signed yet. On first launch, right-click the app and choose **Open**, or run `xattr -cr /Applications/Locket.app`.
+
 ## License
 
 [MIT](LICENSE)
