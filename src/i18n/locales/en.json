@@ -149,7 +149,7 @@
       "reset": "Reset workspace",
       "resetConfirm": {
         "title": "Reset workspace?",
-        "message": "This will delete all projects, tickets, and comments and restore the default sample content. This action cannot be undone.",
+        "message": "This will delete all projects, tickets, and comments and start over with the Welcome project. This action cannot be undone.",
         "confirm": "Reset"
       },
       "resetDone": "Workspace reset"

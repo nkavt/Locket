@@ -1,11 +1,14 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NewTicketDialog } from './NewTicketDialog';
-import { INITIAL_DATA } from '@/data/constants';
-import { renderWithProviders, screen, userEvent } from '@/test/render';
+import { makeWorkspace, seedLocalWorkspace } from '@/test/fixtures';
+import { renderWithProviders, screen, userEvent, waitFor } from '@/test/render';
 
-const project = INITIAL_DATA.projects[0];
+const data = makeWorkspace();
+const project = data.projects[0];
 
 describe('NewTicketDialog', () => {
+  beforeEach(() => seedLocalWorkspace(data));
+
   it('enables Create once a title is entered and reports the created ticket', async () => {
     const onCreated = vi.fn();
     const onClose = vi.fn();
@@ -20,7 +23,7 @@ describe('NewTicketDialog', () => {
     await userEvent.click(screen.getByRole('button', { name: 'bug' }));
     await userEvent.click(create);
 
-    expect(onClose).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
     expect(onCreated).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Ship it', projectId: project.id, labels: ['bug'] }),
     );
@@ -33,6 +36,6 @@ describe('NewTicketDialog', () => {
       <NewTicketDialog open project={project} onClose={vi.fn()} onCreated={onCreated} />,
     );
     await userEvent.type(screen.getByLabelText('Title'), 'Quick{Meta>}{Enter}{/Meta}');
-    expect(onCreated).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onCreated).toHaveBeenCalledOnce());
   });
 });

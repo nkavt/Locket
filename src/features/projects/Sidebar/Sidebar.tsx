@@ -40,7 +40,7 @@ export function Sidebar() {
 
   const confirmDelete = () => {
     if (!deleting) return;
-    deleteProject(deleting.id);
+    void deleteProject(deleting.id);
     if (deleting.id === activeProjectId) navigate('/');
   };
 

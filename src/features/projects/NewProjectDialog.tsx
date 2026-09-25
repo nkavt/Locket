@@ -38,8 +38,6 @@ const DEFAULTS: ProjectFormValues = {
   description: '',
 };
 
-const randomSuffix = () => Math.random().toString(36).slice(2, 6);
-
 export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogProps) {
   const { t } = useTranslation();
   const existing = useProjects();
@@ -79,16 +77,14 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
     validate: (v) => !existing.some((p) => p.slug === v) || t('projects.form.slugTaken'),
   });
 
-  const submit = handleSubmit((v) => {
-    const project: Project = {
-      id: v.slug + '-' + randomSuffix(),
+  const submit = handleSubmit(async (v) => {
+    const project = await addProject({
       name: v.name.trim(),
       slug: v.slug,
       icon: v.icon,
       color: v.color,
-      description: v.description || `# ${v.name.trim()}\n\n`,
-    };
-    addProject(project);
+      description: v.description || undefined,
+    });
     onClose();
     onCreated?.(project);
   });

@@ -4,7 +4,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { initDb, loadData, saveData, withDbLock, type PersistedData } from './db';
+import { initDb } from './db';
+import { registerDataIpc } from './ipc/data';
 import { McpHost } from './mcp/http';
 
 interface PersistedSettings {
@@ -118,8 +119,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('settings:get', () => readSettings());
   ipcMain.handle('settings:set', (_e, patch: Partial<PersistedSettings>) => writeSettings(patch));
   ipcMain.handle('user:get', () => getOsUserName());
-  ipcMain.handle('data:get', () => withDbLock(() => loadData()));
-  ipcMain.handle('data:set', (_e, data: PersistedData) => withDbLock(() => saveData(data)));
+  registerDataIpc((data) => broadcast('data:changed', data));
 
   ipcMain.handle('mcp:status', () => mcp.status());
   ipcMain.handle('mcp:start', async (_e, port?: number) => {

@@ -34,7 +34,7 @@ jobs:
         run: npx tsc -b
 
       - name: Typecheck electron
-        run: npx tsc -p tsconfig.electron.json --noEmit
+        run: npx tsc -p electron --noEmit
 
       - name: Format check
         run: npx prettier --check src electron

@@ -1,94 +1,114 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { useAppStateStore } from './useAppStateStore';
-import { INITIAL_DATA } from '@/data/constants';
+import { WELCOME_PROJECT_ID, WELCOME_TICKET_ID } from '@/data/welcome';
 import { makeProject } from '@/test/fixtures';
-import type { Ticket } from '@/data/types';
 import { installMockLocket } from '@/test/mockLocket';
 
 const LS_KEY = 'locket-app-state-v1';
 
+async function renderStore() {
+  const hook = renderHook(() => useAppStateStore());
+  await waitFor(() => expect(hook.result.current.hydrated).toBe(true));
+  return hook;
+}
+
 describe('useAppStateStore (browser mode)', () => {
-  it('starts hydrated with the sample data', () => {
-    const { result } = renderHook(() => useAppStateStore());
-    expect(result.current.hydrated).toBe(true);
-    expect(result.current.state.projects).toEqual(INITIAL_DATA.projects);
+  it('seeds the Welcome project on first run and persists it', async () => {
+    const { result } = await renderStore();
+    expect(result.current.state.projects.map((p) => p.id)).toEqual([WELCOME_PROJECT_ID]);
+    expect(result.current.state.tickets.map((t) => t.id)).toEqual([WELCOME_TICKET_ID]);
+    expect(result.current.state.counters).toEqual({ [WELCOME_PROJECT_ID]: 1 });
+    const raw = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+    expect(raw.projects.map((p: { id: string }) => p.id)).toEqual([WELCOME_PROJECT_ID]);
+    expect(raw.settings).toBeUndefined();
   });
 
-  it('adds a project with a zeroed counter', () => {
-    const { result } = renderHook(() => useAppStateStore());
-    act(() => result.current.addProject(makeProject({ id: 'p9', slug: 'nine' })));
-    expect(result.current.state.projects.at(-1)?.id).toBe('p9');
-    expect(result.current.state.counters.p9).toBe(0);
-  });
-
-  it('numbers tickets per project from the slug', () => {
-    const { result } = renderHook(() => useAppStateStore());
-    act(() => result.current.addProject(makeProject({ id: 'p9', slug: 'nine' })));
-    const out: { first?: Ticket | null; second?: Ticket | null } = {};
-    act(() => {
-      out.first = result.current.addTicket('p9', { title: 'One' });
+  it('adds a project with a generated id and a zeroed counter', async () => {
+    const { result } = await renderStore();
+    let created: Awaited<ReturnType<typeof result.current.addProject>> | undefined;
+    await act(async () => {
+      created = await result.current.addProject({ name: 'Nine', slug: 'nine' });
     });
-    act(() => {
-      out.second = result.current.addTicket('p9', { title: 'Two' });
-    });
-    expect(out.first?.id).toBe('nine-1');
-    expect(out.second?.id).toBe('nine-2');
-    expect(result.current.state.counters.p9).toBe(2);
+    expect(created?.id).toMatch(/^nine-/);
+    expect(result.current.state.projects.at(-1)?.slug).toBe('nine');
+    expect(result.current.state.counters[created!.id]).toBe(0);
   });
 
-  it('returns null when adding a ticket to an unknown project', () => {
-    const { result } = renderHook(() => useAppStateStore());
-    const out: { created?: Ticket | null } = {};
-    act(() => {
-      out.created = result.current.addTicket('nope', { title: 'x' });
-    });
-    expect(out.created).toBeNull();
+  it('rejects a duplicate slug', async () => {
+    const { result } = await renderStore();
+    const existing = result.current.state.projects[0];
+    await expect(result.current.addProject({ name: 'Dup', slug: existing.slug })).rejects.toThrow(
+      /already in use/,
+    );
   });
 
-  it('deleting a project removes its tickets', () => {
-    const { result } = renderHook(() => useAppStateStore());
+  it('numbers tickets per project from the slug', async () => {
+    const { result } = await renderStore();
+    let projectId = '';
+    await act(async () => {
+      projectId = (await result.current.addProject({ name: 'Nine', slug: 'nine' })).id;
+    });
+    const ids: string[] = [];
+    await act(async () => {
+      ids.push((await result.current.addTicket(projectId, { title: 'One' })).id);
+    });
+    await act(async () => {
+      ids.push((await result.current.addTicket(projectId, { title: 'Two' })).id);
+    });
+    expect(ids).toEqual(['nine-1', 'nine-2']);
+    expect(result.current.state.counters[projectId]).toBe(2);
+    expect(result.current.state.tickets.filter((t) => t.projectId === projectId)).toHaveLength(2);
+  });
+
+  it('rejects adding a ticket to an unknown project', async () => {
+    const { result } = await renderStore();
+    await expect(result.current.addTicket('nope', { title: 'x' })).rejects.toThrow(/not found/);
+  });
+
+  it('deleting a project removes its tickets and counter', async () => {
+    const { result } = await renderStore();
     const project = result.current.state.projects[0];
     expect(result.current.state.tickets.some((t) => t.projectId === project.id)).toBe(true);
-    act(() => result.current.deleteProject(project.id));
+    await act(() => result.current.deleteProject(project.id));
     expect(result.current.state.projects.find((p) => p.id === project.id)).toBeUndefined();
     expect(result.current.state.tickets.some((t) => t.projectId === project.id)).toBe(false);
+    expect(project.id in result.current.state.counters).toBe(false);
   });
 
-  it('updating a ticket bumps the updated date', () => {
-    const { result } = renderHook(() => useAppStateStore());
+  it('updating a ticket bumps the updated date', async () => {
+    const { result } = await renderStore();
     const ticket = result.current.state.tickets[0];
-    act(() => result.current.updateTicket(ticket.id, { title: 'Renamed' }));
+    await act(() => result.current.updateTicket(ticket.id, { title: 'Renamed' }));
     const updated = result.current.state.tickets.find((t) => t.id === ticket.id)!;
     expect(updated.title).toBe('Renamed');
     expect(updated.updated).toBe(new Date().toISOString().slice(0, 10));
   });
 
-  it('adds and deletes comments', () => {
-    const { result } = renderHook(() => useAppStateStore());
+  it('adds and deletes comments', async () => {
+    const { result } = await renderStore();
     const ticket = result.current.state.tickets[0];
     const before = ticket.comments.length;
-    act(() => result.current.addComment(ticket.id, 'hello', 'Sam'));
+    await act(() => result.current.addComment(ticket.id, 'hello', 'Sam'));
     let after = result.current.state.tickets.find((t) => t.id === ticket.id)!;
     expect(after.comments).toHaveLength(before + 1);
     expect(after.comments.at(-1)).toMatchObject({ body: 'hello', author: 'Sam' });
     const commentId = after.comments.at(-1)!.id;
-    act(() => result.current.deleteComment(ticket.id, commentId));
+    await act(() => result.current.deleteComment(ticket.id, commentId));
     after = result.current.state.tickets.find((t) => t.id === ticket.id)!;
     expect(after.comments).toHaveLength(before);
   });
 
-  it('persists to localStorage without settings', async () => {
-    const { result } = renderHook(() => useAppStateStore());
-    act(() => result.current.addProject(makeProject({ id: 'p9' })));
-    await waitFor(() => {
-      const raw = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
-      expect(raw.projects.some((p: { id: string }) => p.id === 'p9')).toBe(true);
-      expect(raw.settings).toBeUndefined();
+  it('persists every change to localStorage', async () => {
+    const { result } = await renderStore();
+    await act(async () => {
+      await result.current.addProject({ name: 'Nine', slug: 'nine' });
     });
+    const raw = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+    expect(raw.projects.some((p: { slug: string }) => p.slug === 'nine')).toBe(true);
   });
 
-  it('loads persisted state from localStorage', () => {
+  it('loads persisted state from localStorage', async () => {
     localStorage.setItem(
       LS_KEY,
       JSON.stringify({
@@ -97,30 +117,53 @@ describe('useAppStateStore (browser mode)', () => {
         counters: { saved: 0 },
       }),
     );
-    const { result } = renderHook(() => useAppStateStore());
+    const { result } = await renderStore();
     expect(result.current.state.projects.map((p) => p.id)).toEqual(['saved']);
   });
 
-  it('resetData restores the sample content', () => {
-    const { result } = renderHook(() => useAppStateStore());
-    act(() => result.current.deleteProject(result.current.state.projects[0].id));
-    act(() => result.current.resetData());
-    expect(result.current.state.projects).toEqual(INITIAL_DATA.projects);
+  it('resetData restores the Welcome project', async () => {
+    const { result } = await renderStore();
+    await act(() => result.current.deleteProject(result.current.state.projects[0].id));
+    expect(result.current.state.projects).toEqual([]);
+    await act(() => result.current.resetData());
+    expect(result.current.state.projects.map((p) => p.id)).toEqual([WELCOME_PROJECT_ID]);
   });
 });
 
 describe('useAppStateStore (electron mode)', () => {
-  it('hydrates from the database and then persists to it', async () => {
+  it('hydrates from the database and writes through the bridge', async () => {
     const mock = installMockLocket({
-      data: { projects: [makeProject({ id: 'db' })], tickets: [], counters: { db: 0 } },
+      data: { projects: [makeProject({ id: 'db', slug: 'db' })], tickets: [], counters: { db: 0 } },
     });
-    const { result } = renderHook(() => useAppStateStore());
-    expect(result.current.hydrated).toBe(false);
-    await waitFor(() => expect(result.current.hydrated).toBe(true));
-    expect(result.current.state.projects.map((p) => p.id)).toEqual(['db']);
+    const hook = renderHook(() => useAppStateStore());
+    expect(hook.result.current.hydrated).toBe(false);
+    await waitFor(() => expect(hook.result.current.hydrated).toBe(true));
+    expect(hook.result.current.state.projects.map((p) => p.id)).toEqual(['db']);
 
-    act(() => result.current.addProject(makeProject({ id: 'p9' })));
-    await waitFor(() => expect(mock.data?.projects.map((p) => p.id)).toEqual(['db', 'p9']));
+    await act(async () => {
+      await hook.result.current.addProject({ name: 'Nine', slug: 'nine' });
+    });
+    expect(mock.data?.projects.map((p) => p.slug)).toEqual(['db', 'nine']);
+    expect(hook.result.current.state.projects.map((p) => p.slug)).toEqual(['db', 'nine']);
+  });
+
+  it('seeds the database on first run from legacy localStorage', async () => {
+    localStorage.setItem(
+      LS_KEY,
+      JSON.stringify({ projects: [makeProject({ id: 'legacy' })], tickets: [], counters: {} }),
+    );
+    const mock = installMockLocket({ data: null });
+    const { result } = await renderStore();
+    expect(mock.data?.projects.map((p) => p.id)).toEqual(['legacy']);
+    expect(result.current.state.projects.map((p) => p.id)).toEqual(['legacy']);
+    expect(localStorage.getItem(LS_KEY)).toBeNull();
+  });
+
+  it('seeds the database with the Welcome project when nothing exists', async () => {
+    const mock = installMockLocket({ data: null });
+    await renderStore();
+    expect(mock.data?.projects.map((p) => p.id)).toEqual([WELCOME_PROJECT_ID]);
+    expect(mock.data?.tickets.map((t) => t.id)).toEqual([WELCOME_TICKET_ID]);
   });
 
   it('merges persisted settings and writes only persisted keys back', async () => {

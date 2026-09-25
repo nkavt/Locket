@@ -1,8 +1,8 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { routes } from './router';
-import { INITIAL_DATA } from '@/data/constants';
+import { seedLocalWorkspace } from '@/test/fixtures';
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
@@ -10,11 +10,14 @@ function renderAt(path: string) {
   return router;
 }
 
-const first = INITIAL_DATA.projects[0];
-const firstTicket = INITIAL_DATA.tickets.find((t) => t.projectId === first.id)!;
-const otherProject = INITIAL_DATA.projects.find((p) => p.id !== first.id)!;
+const data = seedLocalWorkspace();
+const first = data.projects[0];
+const firstTicket = data.tickets.find((t) => t.projectId === first.id)!;
+const otherProject = data.projects.find((p) => p.id !== first.id)!;
 
 describe('routes', () => {
+  beforeEach(() => seedLocalWorkspace(data));
+
   it('"/" redirects to the first project', async () => {
     const router = renderAt('/');
     await waitFor(() => expect(router.state.location.pathname).toBe(`/projects/${first.id}`));
