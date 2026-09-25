@@ -4,8 +4,8 @@
     "lib": ["ES2022"],
     "module": "node16",
     "moduleResolution": "node16",
-    "outDir": "dist-electron",
-    "rootDir": "electron",
+    "outDir": "../dist-electron",
+    "rootDir": ".",
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
@@ -17,6 +17,6 @@
     "noFallthroughCasesInSwitch": true,
     "types": ["node"]
   },
-  "include": ["electron/**/*"],
-  "exclude": ["electron/**/*.test.ts"]
+  "include": ["**/*"],
+  "exclude": ["**/*.test.ts", "test/**"]
 }

@@ -1,5 +1,16 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import type { PersistedData } from './db';
+import type {
+  NewProjectInput,
+  NewTicketInput,
+  PersistedComment,
+  PersistedData,
+  PersistedProject,
+  PersistedTicket,
+  ProjectPatch,
+  TicketFilter,
+  TicketPatch,
+} from './db/types';
+import type { ProjectSummary } from './services';
 import type { McpLogLine, McpStatus } from './mcp/http';
 
 interface PersistedSettings {
@@ -25,10 +36,36 @@ contextBridge.exposeInMainWorld('locket', {
   },
   data: {
     get: (): Promise<PersistedData | null> => ipcRenderer.invoke('data:get'),
-    set: (data: PersistedData): Promise<void> => ipcRenderer.invoke('data:set', data),
-    /** Fires when something other than the renderer (e.g. the MCP server) changed the data. */
+    /** Replace the whole workspace: first-run seeding and reset only. */
+    replace: (data: PersistedData): Promise<void> => ipcRenderer.invoke('data:replace', data),
+    /** Fires after any change made outside this renderer call (MCP tools, other windows). */
     onChanged: (cb: (data: PersistedData) => void): Unsubscribe =>
       subscribe<PersistedData>('data:changed', cb),
+  },
+  projects: {
+    list: (): Promise<ProjectSummary[]> => ipcRenderer.invoke('projects:list'),
+    create: (input: NewProjectInput): Promise<PersistedProject> =>
+      ipcRenderer.invoke('projects:create', input),
+    update: (id: string, patch: ProjectPatch): Promise<PersistedProject> =>
+      ipcRenderer.invoke('projects:update', id, patch),
+    delete: (id: string): Promise<{ deletedTickets: number }> =>
+      ipcRenderer.invoke('projects:delete', id),
+  },
+  tickets: {
+    list: (filter?: TicketFilter): Promise<PersistedTicket[]> =>
+      ipcRenderer.invoke('tickets:list', filter),
+    get: (id: string): Promise<PersistedTicket> => ipcRenderer.invoke('tickets:get', id),
+    create: (input: NewTicketInput): Promise<PersistedTicket> =>
+      ipcRenderer.invoke('tickets:create', input),
+    update: (id: string, patch: TicketPatch): Promise<PersistedTicket> =>
+      ipcRenderer.invoke('tickets:update', id, patch),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('tickets:delete', id),
+  },
+  comments: {
+    add: (ticketId: string, body: string, author: string): Promise<PersistedComment> =>
+      ipcRenderer.invoke('comments:add', ticketId, body, author),
+    delete: (ticketId: string, commentId: number): Promise<void> =>
+      ipcRenderer.invoke('comments:delete', ticketId, commentId),
   },
   mcp: {
     status: (): Promise<McpStatus> => ipcRenderer.invoke('mcp:status'),
