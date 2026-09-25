@@ -1,5 +1,6 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { readData, type PersistedData } from '../db';
+import { readData } from '../db/store';
+import type { PersistedData } from '../db/types';
 
 export interface McpServerHooks {
   /** Called after any tool mutates data, with the fresh dataset. */

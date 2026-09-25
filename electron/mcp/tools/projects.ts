@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { createProject, deleteProject, readData, updateProject } from '../../db';
+import { createProject, deleteProject, listProjects, updateProject } from '../../services';
 import { compact, guarded, json, type McpContext } from '../context';
 import { SLUG } from '../schemas';
 
@@ -14,14 +14,14 @@ export function registerProjectTools(server: McpServer, { log, changed }: McpCon
     },
     guarded(async () => {
       log('tools/call list_projects');
-      const data = await readData();
+      const projects = await listProjects();
       return json(
-        data.projects.map((p) => ({
-          id: p.id,
-          name: p.name,
-          slug: p.slug,
-          description: p.description,
-          ticketCount: data.tickets.filter((t) => t.projectId === p.id).length,
+        projects.map(({ id, name, slug, description, ticketCount }) => ({
+          id,
+          name,
+          slug,
+          description,
+          ticketCount,
         })),
       );
     }),

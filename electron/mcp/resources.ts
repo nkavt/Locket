@@ -1,5 +1,5 @@
 import { ResourceTemplate, type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { readData } from '../db';
+import { getTicket, listProjects, listTickets } from '../services';
 import type { McpContext } from './context';
 import { ticketToMarkdown } from './format';
 
@@ -14,14 +14,19 @@ export function registerResources(server: McpServer, { log }: McpContext): void 
     },
     async (uri) => {
       log('resources/read locket://projects');
-      const data = await readData();
+      const projects = (await listProjects()).map(
+        ({ id, name, slug, icon, color, description }) => ({
+          id,
+          name,
+          slug,
+          icon,
+          color,
+          description,
+        }),
+      );
       return {
         contents: [
-          {
-            uri: uri.href,
-            mimeType: 'application/json',
-            text: JSON.stringify(data.projects, null, 2),
-          },
+          { uri: uri.href, mimeType: 'application/json', text: JSON.stringify(projects, null, 2) },
         ],
       };
     },
@@ -32,9 +37,9 @@ export function registerResources(server: McpServer, { log }: McpContext): void 
     new ResourceTemplate('locket://tickets/{id}', {
       list: async () => {
         log('resources/list');
-        const data = await readData();
+        const tickets = await listTickets();
         return {
-          resources: data.tickets.map((t) => ({
+          resources: tickets.map((t) => ({
             uri: `locket://tickets/${t.id}`,
             name: `${t.id}: ${t.title}`,
             mimeType: 'text/markdown',
@@ -49,9 +54,7 @@ export function registerResources(server: McpServer, { log }: McpContext): void 
     },
     async (uri, { id }) => {
       log(`resources/read ${uri.href}`);
-      const data = await readData();
-      const ticket = data.tickets.find((t) => t.id === id);
-      if (!ticket) throw new Error(`Ticket "${String(id)}" not found`);
+      const ticket = await getTicket(String(id));
       return {
         contents: [{ uri: uri.href, mimeType: 'text/markdown', text: ticketToMarkdown(ticket) }],
       };

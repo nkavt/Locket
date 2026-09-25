@@ -1,4 +1,4 @@
-import type { PersistedTicket } from '../db';
+import type { PersistedTicket } from '../db/types';
 
 export const ticketSummary = (t: PersistedTicket) => ({
   id: t.id,

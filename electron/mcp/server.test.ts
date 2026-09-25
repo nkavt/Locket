@@ -2,105 +2,11 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PersistedData, PersistedTicket } from '../db';
-
-// In-memory stand-in for the SQLite-backed module. Mirrors the real
-// load -> mutate -> save semantics without touching Electron or disk.
-const store: { data: PersistedData } = { data: { projects: [], tickets: [], counters: {} } };
+import { memory, resetMemory } from '../test/memory-store';
 
 vi.mock('electron', () => ({ app: { getVersion: () => '0.0.0-test' } }));
-
-vi.mock('../db', () => {
-  const today = () => new Date().toISOString().slice(0, 10);
-  class NotFoundError extends Error {
-    constructor(what: string, id: string) {
-      super(`${what} "${id}" not found`);
-    }
-  }
-  return {
-    NotFoundError,
-    readData: async () => structuredClone(store.data),
-    createProject: async (input: { name: string; slug: string }) => {
-      if (store.data.projects.some((p) => p.slug === input.slug)) {
-        throw new Error(`Slug "${input.slug}" already in use`);
-      }
-      const project = {
-        id: `${input.slug}-abcd`,
-        name: input.name,
-        slug: input.slug,
-        icon: 'rocket_launch',
-        color: '#1976d2',
-        description: '',
-      };
-      store.data.projects.push(project);
-      store.data.counters[project.id] = 0;
-      return project;
-    },
-    updateProject: async (id: string, patch: Record<string, unknown>) => {
-      const p = store.data.projects.find((x) => x.id === id);
-      if (!p) throw new NotFoundError('Project', id);
-      Object.assign(p, patch);
-      return p;
-    },
-    deleteProject: async (id: string) => {
-      const i = store.data.projects.findIndex((p) => p.id === id);
-      if (i === -1) throw new NotFoundError('Project', id);
-      store.data.projects.splice(i, 1);
-      const before = store.data.tickets.length;
-      store.data.tickets = store.data.tickets.filter((t) => t.projectId !== id);
-      return { deletedTickets: before - store.data.tickets.length };
-    },
-    createTicket: async (input: {
-      projectId: string;
-      title: string;
-      description?: string;
-      status?: string;
-      priority?: string;
-      labels?: string[];
-      due?: string | null;
-      author: string;
-    }) => {
-      const project = store.data.projects.find((p) => p.id === input.projectId);
-      if (!project) throw new NotFoundError('Project', input.projectId);
-      const next = (store.data.counters[project.id] || 0) + 1;
-      const ticket: PersistedTicket = {
-        id: `${project.slug}-${next}`,
-        projectId: project.id,
-        title: input.title,
-        description: input.description ?? '',
-        status: input.status ?? 'todo',
-        priority: input.priority ?? 'medium',
-        labels: input.labels ?? [],
-        due: input.due ?? null,
-        author: input.author,
-        created: today(),
-        updated: today(),
-        comments: [],
-      };
-      store.data.tickets.push(ticket);
-      store.data.counters[project.id] = next;
-      return ticket;
-    },
-    updateTicket: async (id: string, patch: Partial<PersistedTicket>) => {
-      const t = store.data.tickets.find((x) => x.id === id);
-      if (!t) throw new NotFoundError('Ticket', id);
-      Object.assign(t, patch, { updated: today() });
-      return t;
-    },
-    deleteTicket: async (id: string) => {
-      const i = store.data.tickets.findIndex((x) => x.id === id);
-      if (i === -1) throw new NotFoundError('Ticket', id);
-      store.data.tickets.splice(i, 1);
-    },
-    addComment: async (ticketId: string, body: string, author: string) => {
-      const t = store.data.tickets.find((x) => x.id === ticketId);
-      if (!t) throw new NotFoundError('Ticket', ticketId);
-      const c = { id: 1, author, ts: '2026-01-01T00:00:00.000Z', body };
-      t.comments.push(c);
-      return c;
-    },
-  };
-});
+// Services run for real; only the SQLite store is swapped for memory.
+vi.mock('../db/store', () => import('../test/memory-store'));
 
 const { createMcpServer } = await import('./server');
 const { ticketToMarkdown } = await import('./format');
@@ -130,7 +36,7 @@ async function connect(hooks = {}) {
 }
 
 beforeEach(() => {
-  store.data = {
+  resetMemory({
     projects: [
       { id: 'p1', name: 'One', slug: 'one', icon: 'bolt', color: '#000', description: '' },
       { id: 'p2', name: 'Two', slug: 'two', icon: 'bolt', color: '#000', description: '' },
@@ -166,7 +72,7 @@ beforeEach(() => {
       },
     ],
     counters: { p1: 1, p2: 1 },
-  };
+  });
 });
 
 describe('MCP server', () => {
@@ -255,7 +161,7 @@ describe('MCP server', () => {
       await client.callTool({ name: 'delete_ticket', arguments: { id: 'one-2' } }),
     );
     expect(deleted).toEqual({ deleted: 'one-2' });
-    expect(store.data.tickets.map((t) => t.id)).toEqual(['one-1', 'two-1']);
+    expect(memory.data.tickets.map((t) => t.id)).toEqual(['one-1', 'two-1']);
     expect(onDataChanged).toHaveBeenCalledTimes(4);
   });
 
@@ -268,7 +174,8 @@ describe('MCP server', () => {
         arguments: { name: 'Three', slug: 'three' },
       }),
     );
-    expect(created).toMatchObject({ id: 'three-abcd', slug: 'three' });
+    expect(created).toMatchObject({ slug: 'three' });
+    expect(created.id).toMatch(/^three-[a-z0-9]{4}$/);
 
     const dup = await client.callTool({
       name: 'create_project',
@@ -286,8 +193,8 @@ describe('MCP server', () => {
       await client.callTool({ name: 'delete_project', arguments: { id: 'p1' } }),
     );
     expect(deleted).toEqual({ deleted: 'p1', deletedTickets: 1 });
-    expect(store.data.projects.map((p) => p.id)).toEqual(['p2', 'three-abcd']);
-    expect(store.data.tickets.map((t) => t.id)).toEqual(['two-1']);
+    expect(memory.data.projects.map((p) => p.id)).toEqual(['p2', created.id]);
+    expect(memory.data.tickets.map((t) => t.id)).toEqual(['two-1']);
     expect(onDataChanged).toHaveBeenCalledTimes(3);
   });
 

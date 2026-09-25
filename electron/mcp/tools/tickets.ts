@@ -1,7 +1,14 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { addComment, createTicket, deleteTicket, readData, updateTicket } from '../../db';
-import { DEFAULT_AUTHOR, compact, fail, guarded, json, type McpContext } from '../context';
+import {
+  addComment,
+  createTicket,
+  deleteTicket,
+  getTicket,
+  listTickets,
+  updateTicket,
+} from '../../services';
+import { DEFAULT_AUTHOR, compact, guarded, json, type McpContext } from '../context';
 import { ticketSummary } from '../format';
 import { DATE, PRIORITY, STATUS } from '../schemas';
 
@@ -24,21 +31,9 @@ export function registerTicketTools(server: McpServer, { log, changed }: McpCont
       },
       annotations: { readOnlyHint: true },
     },
-    guarded(async ({ projectId, status, priority, label, query }) => {
-      log(`tools/call list_tickets${projectId ? ` ${projectId}` : ''}`);
-      const data = await readData();
-      const q = query?.trim().toLowerCase();
-      const rows = data.tickets.filter(
-        (t) =>
-          (!projectId || t.projectId === projectId) &&
-          (!status || t.status === status) &&
-          (!priority || t.priority === priority) &&
-          (!label || t.labels.includes(label)) &&
-          (!q ||
-            t.title.toLowerCase().includes(q) ||
-            t.id.toLowerCase().includes(q) ||
-            t.labels.some((l) => l.toLowerCase().includes(q))),
-      );
+    guarded(async (filter) => {
+      log(`tools/call list_tickets${filter.projectId ? ` ${filter.projectId}` : ''}`);
+      const rows = await listTickets(filter);
       return json(rows.map(ticketSummary));
     }),
   );
@@ -53,10 +48,7 @@ export function registerTicketTools(server: McpServer, { log, changed }: McpCont
     },
     guarded(async ({ id }) => {
       log(`tools/call get_ticket ${id}`);
-      const data = await readData();
-      const ticket = data.tickets.find((t) => t.id === id);
-      if (!ticket) return fail(`Ticket "${id}" not found`);
-      return json(ticket);
+      return json(await getTicket(id));
     }),
   );
 
