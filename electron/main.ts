@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import { initDb } from './db';
 import { registerDataIpc } from './ipc/data';
 import { McpHost } from './mcp/http';
+import { isAllowedExternalUrl, isDevServerUrl } from './navigation';
 
 interface PersistedSettings {
   mcpPort: number;
@@ -93,6 +94,20 @@ const createWindow = (): void => {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  // The app never leaves its own page: links open in the OS, and only for safe protocols.
+  const openExternal = (url: string): void => {
+    if (isAllowedExternalUrl(url)) void shell.openExternal(url);
+  };
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    openExternal(url);
+    return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (event, url) => {
+    if (isDevServerUrl(url, process.env.VITE_DEV_SERVER_URL)) return;
+    event.preventDefault();
+    openExternal(url);
   });
 
   if (process.env.VITE_DEV_SERVER_URL) {
