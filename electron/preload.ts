@@ -73,6 +73,9 @@ contextBridge.exposeInMainWorld('locket', {
     stop: (): Promise<McpStatus> => ipcRenderer.invoke('mcp:stop'),
     onStatus: (cb: (status: McpStatus) => void): Unsubscribe =>
       subscribe<McpStatus>('mcp:status', cb),
+    getLogs: (): Promise<McpLogLine[]> => ipcRenderer.invoke('mcp:getLogs'),
+    clearLogs: (): Promise<void> => ipcRenderer.invoke('mcp:clearLogs'),
     onLog: (cb: (line: McpLogLine) => void): Unsubscribe => subscribe<McpLogLine>('mcp:log', cb),
+    onLogsCleared: (cb: () => void): Unsubscribe => subscribe<null>('mcp:logsCleared', () => cb()),
   },
 });

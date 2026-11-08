@@ -1,7 +1,10 @@
 import { EventEmitter } from 'node:events';
 import * as http from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { McpLogFile, type McpLogLine } from './log-file';
 import { createMcpServer, type McpServerHooks } from './server';
+
+export { MAX_LOG_LINES, type McpLogLine } from './log-file';
 
 export const MCP_PATH = '/mcp';
 export const MCP_HOST = '127.0.0.1';
@@ -12,13 +15,9 @@ export interface McpStatus {
   url: string | null;
 }
 
-export interface McpLogLine {
-  ts: string;
-  line: string;
-}
-
 export interface McpHostEvents {
   log: [McpLogLine];
+  logsCleared: [];
   status: [McpStatus];
 }
 
@@ -30,9 +29,15 @@ export interface McpHostEvents {
 export class McpHost extends EventEmitter<McpHostEvents> {
   private server: http.Server | null = null;
   private port: number | null = null;
+  private readonly logFile: McpLogFile;
 
-  constructor(private readonly hooks: Omit<McpServerHooks, 'log'>) {
+  /** `logFilePath` is where the server log is written (e.g. `userData/logs/mcp.log`). */
+  constructor(
+    private readonly hooks: Omit<McpServerHooks, 'log'>,
+    logFilePath: string,
+  ) {
     super();
+    this.logFile = new McpLogFile(logFilePath);
   }
 
   status(): McpStatus {
@@ -43,8 +48,20 @@ export class McpHost extends EventEmitter<McpHostEvents> {
     };
   }
 
+  /** The log file's newest lines, oldest first. Kept on stop and across app restarts; cleared on start. */
+  logs(): McpLogLine[] {
+    return this.logFile.read();
+  }
+
+  clearLogs(): void {
+    this.logFile.clear();
+    this.emit('logsCleared');
+  }
+
   private log(line: string): void {
-    this.emit('log', { ts: new Date().toISOString(), line });
+    const entry = { ts: new Date().toISOString(), line };
+    this.logFile.append(entry);
+    this.emit('log', entry);
   }
 
   async start(port: number): Promise<McpStatus> {
@@ -52,18 +69,27 @@ export class McpHost extends EventEmitter<McpHostEvents> {
       if (this.port === port) return this.status();
       await this.stop();
     }
+    // Each (re)start begins a fresh log; stopping keeps it so the reason stays visible.
+    this.clearLogs();
     const allowedHosts = [`${MCP_HOST}:${port}`, `localhost:${port}`];
     const server = http.createServer((req, res) => {
       void this.handle(req, res, allowedHosts);
     });
 
-    await new Promise<void>((resolve, reject) => {
-      server.once('error', reject);
-      server.listen(port, MCP_HOST, () => {
-        server.off('error', reject);
-        resolve();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(port, MCP_HOST, () => {
+          server.off('error', reject);
+          resolve();
+        });
       });
-    });
+    } catch (err) {
+      this.log(
+        `failed to start on port ${port}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      throw err;
+    }
 
     this.server = server;
     this.port = port;

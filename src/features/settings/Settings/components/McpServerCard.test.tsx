@@ -1,6 +1,6 @@
 import { FormProvider, useForm } from 'react-hook-form';
 import type { ReactNode } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { McpServerCard } from './McpServerCard';
 import { installMockLocket } from '@/test/mockLocket';
 import { act, renderWithProviders, screen, userEvent, waitFor } from '@/test/render';
@@ -42,5 +42,66 @@ describe('McpServerCard', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Stop server' }));
     expect(await screen.findByText('Stopped')).toBeInTheDocument();
     expect(mock.mcp.running).toBe(false);
+  });
+
+  it('keeps the log across remounts and shows lines sent while unmounted', async () => {
+    const mock = installMockLocket();
+    await mock.bridge.mcp.start(7821);
+    mock.emitLog('first line');
+    const view = renderWithProviders(
+      <Form>
+        <McpServerCard />
+      </Form>,
+    );
+    expect(await screen.findByText('first line')).toBeInTheDocument();
+    view.unmount();
+
+    mock.emitLog('while away');
+    renderWithProviders(
+      <Form>
+        <McpServerCard />
+      </Form>,
+    );
+    expect(await screen.findByText('first line')).toBeInTheDocument();
+    expect(screen.getByText('while away')).toBeInTheDocument();
+  });
+
+  it('keeps the log on stop and clears it on the next start', async () => {
+    const mock = installMockLocket();
+    renderWithProviders(
+      <Form>
+        <McpServerCard />
+      </Form>,
+    );
+    const start = await screen.findByRole('button', { name: 'Start server' });
+    await waitFor(() => expect(start).toBeEnabled());
+    await userEvent.click(start);
+    act(() => mock.emitLog('old run'));
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Stop server' }));
+    expect(await screen.findByText('Stopped')).toBeInTheDocument();
+    expect(screen.getByText('old run')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Start server' }));
+    expect(await screen.findByText('Running')).toBeInTheDocument();
+    expect(screen.queryByText('old run')).not.toBeInTheDocument();
+  });
+
+  it('opens the log scrolled to the newest line', async () => {
+    const mock = installMockLocket();
+    for (let i = 0; i < 50; i++) mock.emitLog(`line ${i}`);
+    // jsdom has no layout, so fake a scrollable box.
+    const height = vi.spyOn(Element.prototype, 'scrollHeight', 'get').mockReturnValue(1000);
+    try {
+      renderWithProviders(
+        <Form>
+          <McpServerCard />
+        </Form>,
+      );
+      expect(await screen.findByText('line 49')).toBeInTheDocument();
+      expect(screen.getByTestId('mcp-log').scrollTop).toBe(1000);
+    } finally {
+      height.mockRestore();
+    }
   });
 });

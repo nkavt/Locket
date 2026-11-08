@@ -101,7 +101,10 @@ declare global {
         start: (port?: number) => Promise<McpStatus>;
         stop: () => Promise<McpStatus>;
         onStatus: (cb: (status: McpStatus) => void) => Unsubscribe;
+        getLogs: () => Promise<McpLogLine[]>;
+        clearLogs: () => Promise<void>;
         onLog: (cb: (line: McpLogLine) => void) => Unsubscribe;
+        onLogsCleared: (cb: () => void) => Unsubscribe;
       };
     };
   }

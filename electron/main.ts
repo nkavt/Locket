@@ -76,10 +76,12 @@ const broadcast = (channel: string, payload: unknown): void => {
   }
 };
 
-const mcp = new McpHost({
-  onDataChanged: (data) => broadcast('data:changed', data),
-});
+const mcp = new McpHost(
+  { onDataChanged: (data) => broadcast('data:changed', data) },
+  path.join(app.getPath('userData'), 'logs', 'mcp.log'),
+);
 mcp.on('log', (line) => broadcast('mcp:log', line));
+mcp.on('logsCleared', () => broadcast('mcp:logsCleared', null));
 mcp.on('status', (status) => broadcast('mcp:status', status));
 
 const iconPath = path.join(__dirname, '..', 'build', 'icon.png');
@@ -136,6 +138,8 @@ app.whenReady().then(async () => {
     return mcp.start(p);
   });
   ipcMain.handle('mcp:stop', () => mcp.stop());
+  ipcMain.handle('mcp:getLogs', () => mcp.logs());
+  ipcMain.handle('mcp:clearLogs', () => mcp.clearLogs());
 
   createWindow();
 

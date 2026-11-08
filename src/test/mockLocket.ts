@@ -13,6 +13,9 @@ export interface MockLocket {
   dataListeners: Set<(data: PersistedData) => void>;
   statusListeners: Set<(status: McpStatus) => void>;
   logListeners: Set<(line: McpLogLine) => void>;
+  logsClearedListeners: Set<() => void>;
+  /** The main-process log buffer: cleared on start, kept on stop. */
+  logs: McpLogLine[];
   /** Simulate the main process pushing changed data / a log line. */
   emitDataChanged: (data: PersistedData) => void;
   emitLog: (line: string) => void;
@@ -24,6 +27,10 @@ export function installMockLocket(
   init: Partial<Pick<MockLocket, 'data' | 'settings' | 'user'>> = {},
 ): MockLocket {
   /** The entity APIs operate on `mock.data`, creating an empty dataset on first write. */
+  const clearLogs = () => {
+    mock.logs = [];
+    mock.logsClearedListeners.forEach((l) => l());
+  };
   const data = (): PersistedData => (mock.data ??= { projects: [], tickets: [], counters: {} });
   const mock: MockLocket = {
     data: init.data ?? null,
@@ -33,8 +40,14 @@ export function installMockLocket(
     dataListeners: new Set(),
     statusListeners: new Set(),
     logListeners: new Set(),
+    logsClearedListeners: new Set(),
+    logs: [],
     emitDataChanged: (data) => mock.dataListeners.forEach((l) => l(data)),
-    emitLog: (line) => mock.logListeners.forEach((l) => l({ ts: new Date().toISOString(), line })),
+    emitLog: (line) => {
+      const entry = { ts: new Date().toISOString(), line };
+      mock.logs.push(entry);
+      mock.logListeners.forEach((l) => l(entry));
+    },
     bridge: {
       settings: {
         get: async () => mock.settings,
@@ -154,6 +167,7 @@ export function installMockLocket(
       mcp: {
         status: async () => mock.mcp,
         start: async (port) => {
+          clearLogs();
           mock.mcp = {
             running: true,
             port: port ?? mock.settings.mcpPort,
@@ -171,9 +185,15 @@ export function installMockLocket(
           mock.statusListeners.add(cb);
           return () => mock.statusListeners.delete(cb);
         },
+        getLogs: async () => [...mock.logs],
+        clearLogs: async () => clearLogs(),
         onLog: (cb) => {
           mock.logListeners.add(cb);
           return () => mock.logListeners.delete(cb);
+        },
+        onLogsCleared: (cb) => {
+          mock.logsClearedListeners.add(cb);
+          return () => mock.logsClearedListeners.delete(cb);
         },
       },
     },
