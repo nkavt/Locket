@@ -13,6 +13,7 @@ import { Icon } from '@/components/Icon';
 import { useSnackbar } from '@/state/useSnackbar';
 import { monoFontFamily } from '@/theme';
 import type { Project, Ticket } from '@/data/types';
+import { tintText } from '@/utils/tint';
 
 interface TicketHeaderProps {
   ticket: Ticket;
@@ -40,14 +41,14 @@ export function TicketHeader({ ticket, project, onBack, onDelete }: TicketHeader
         display: 'flex',
         alignItems: 'center',
         gap: 1,
-        background: 'background.paper',
+        bgcolor: 'background.paper',
       }}
     >
       <IconButton onClick={onBack} title={t('common.back')}>
         <Icon name="arrow_back" size={20} />
       </IconButton>
       <Box sx={{ fontFamily: monoFontFamily, fontSize: 12, color: 'text.disabled' }}>
-        <Box component="span" sx={{ color: project.color }}>
+        <Box component="span" sx={{ color: (t) => tintText(t, project.color) }}>
           {project.name}
         </Box>
         <Box component="span" sx={{ mx: 0.75 }}>
@@ -55,7 +56,7 @@ export function TicketHeader({ ticket, project, onBack, onDelete }: TicketHeader
         </Box>
         <Box
           component="span"
-          sx={{ background: 'action.hover', padding: '2px 7px', borderRadius: '4px' }}
+          sx={{ bgcolor: 'action.hover', padding: '2px 7px', borderRadius: '4px' }}
         >
           {ticket.id}
         </Box>

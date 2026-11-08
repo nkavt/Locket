@@ -11,7 +11,7 @@ export function SettingsCard({ title, subtitle, children }: SettingsCardProps) {
   return (
     <Box
       sx={{
-        background: 'background.paper',
+        bgcolor: 'background.paper',
         border: 1,
         borderColor: 'divider',
         borderRadius: 1,

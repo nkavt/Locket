@@ -6,6 +6,17 @@ const fontFamily = '"Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", san
 
 const monoFamily = '"JetBrains Mono", ui-monospace, monospace';
 
+/**
+ * Dark surfaces, lowest to highest: the page, panels and cards (sidebar, headers,
+ * settings cards), then floating layers (dialogs, menus, popovers).
+ */
+const darkSurface = {
+  page: '#0e1014',
+  paper: '#171a21',
+  elevated: '#1f232c',
+  border: 'rgba(255,255,255,0.13)',
+};
+
 export function getTheme(mode: ThemeMode): Theme {
   const isDark = mode === 'dark';
   return createTheme({
@@ -15,20 +26,21 @@ export function getTheme(mode: ThemeMode): Theme {
         main: isDark ? '#90caf9' : '#1976d2',
         dark: isDark ? '#64b5f6' : '#1565c0',
       },
-      error: { main: isDark ? '#f44336' : '#d32f2f' },
+      // Dark mode uses a softer red (MUI red 300) so destructive actions don't glare.
+      error: isDark ? { main: '#e57373', dark: '#d65c5c' } : { main: '#d32f2f' },
       warning: { main: isDark ? '#ffa726' : '#ed6c02' },
       success: { main: isDark ? '#66bb6a' : '#2e7d32' },
       info: { main: isDark ? '#29b6f6' : '#0288d1' },
       background: {
-        default: isDark ? '#0f1115' : '#fafafa',
-        paper: isDark ? '#15181f' : '#ffffff',
+        default: isDark ? darkSurface.page : '#fafafa',
+        paper: isDark ? darkSurface.paper : '#ffffff',
       },
       text: {
         primary: isDark ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.87)',
         secondary: isDark ? 'rgba(255,255,255,0.66)' : 'rgba(0,0,0,0.6)',
-        disabled: isDark ? 'rgba(255,255,255,0.42)' : 'rgba(0,0,0,0.38)',
+        disabled: isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.38)',
       },
-      divider: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+      divider: isDark ? darkSurface.border : 'rgba(0,0,0,0.08)',
     },
     shape: { borderRadius: 8 },
     typography: {
@@ -39,19 +51,21 @@ export function getTheme(mode: ThemeMode): Theme {
     components: {
       MuiCssBaseline: {
         styleOverrides: {
+          // Native controls (date picker, checkboxes, scrollbars) follow the theme.
+          html: { colorScheme: mode },
           'html, body, #root': { height: '100%', margin: 0, padding: 0 },
           body: { overflow: 'hidden' },
           'code, pre, .mono': { fontFamily: monoFamily },
           '::-webkit-scrollbar': { width: 10, height: 10 },
           '::-webkit-scrollbar-track': { background: 'transparent' },
           '::-webkit-scrollbar-thumb': {
-            background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+            background: isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.08)',
             borderRadius: 6,
             border: '2px solid transparent',
             backgroundClip: 'content-box',
           },
           '::-webkit-scrollbar-thumb:hover': {
-            background: isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.16)',
+            background: isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.16)',
             backgroundClip: 'content-box',
             border: '2px solid transparent',
           },
@@ -71,6 +85,27 @@ export function getTheme(mode: ThemeMode): Theme {
           root: { borderRadius: 4 },
         },
       },
+      // Floating layers sit one step above paper, with a border instead of MUI's grey overlay.
+      ...(isDark && {
+        MuiDialog: {
+          styleOverrides: {
+            paper: {
+              backgroundColor: darkSurface.elevated,
+              backgroundImage: 'none',
+              border: `1px solid ${darkSurface.border}`,
+            },
+          },
+        },
+        MuiPopover: {
+          styleOverrides: {
+            paper: {
+              backgroundColor: darkSurface.elevated,
+              backgroundImage: 'none',
+              border: `1px solid ${darkSurface.border}`,
+            },
+          },
+        },
+      }),
       MuiTooltip: {
         styleOverrides: {
           tooltip: { fontSize: 11 },

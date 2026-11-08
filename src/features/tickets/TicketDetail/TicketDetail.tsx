@@ -33,7 +33,7 @@ export function TicketDetail({ ticket, project }: TicketDetailProps) {
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        background: 'background.default',
+        bgcolor: 'background.default',
       }}
     >
       <TicketHeader

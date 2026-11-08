@@ -49,7 +49,7 @@ export function Sidebar() {
       component="aside"
       sx={{
         width: 248,
-        background: 'background.paper',
+        bgcolor: 'background.paper',
         borderRight: 1,
         borderColor: 'divider',
         display: 'flex',
@@ -132,7 +132,7 @@ export function Sidebar() {
               width: 22,
               height: 22,
               borderRadius: '6px',
-              background: 'action.hover',
+              bgcolor: 'action.hover',
               color: 'text.secondary',
               display: 'inline-flex',
               alignItems: 'center',
