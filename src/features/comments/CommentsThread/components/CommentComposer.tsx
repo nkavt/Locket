@@ -101,7 +101,7 @@ export function CommentComposer({ onSubmit }: CommentComposerProps) {
       >
         <Box
           sx={{
-            background: 'background.paper',
+            bgcolor: 'background.paper',
             border: 1,
             borderColor: focused ? 'primary.main' : 'divider',
             borderRadius: 2,

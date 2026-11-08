@@ -44,7 +44,7 @@ export function TitleEditor({ value, onSave }: TitleEditorProps) {
           fontFamily: 'inherit',
           fontSize: 26,
           fontWeight: 500,
-          background: 'action.hover',
+          bgcolor: 'action.hover',
           padding: '6px 10px',
           borderRadius: '6px',
           color: 'text.primary',
@@ -66,7 +66,7 @@ export function TitleEditor({ value, onSave }: TitleEditorProps) {
         borderRadius: '6px',
         cursor: 'text',
         transition: 'background 0.12s',
-        '&:hover': { background: 'action.hover' },
+        '&:hover': { bgcolor: 'action.hover' },
       }}
     >
       {value}

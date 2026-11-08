@@ -71,7 +71,7 @@ export function Settings() {
           sx={{
             borderTop: 1,
             borderColor: 'divider',
-            background: 'background.paper',
+            bgcolor: 'background.paper',
             padding: '12px 28px',
             display: 'flex',
             alignItems: 'center',

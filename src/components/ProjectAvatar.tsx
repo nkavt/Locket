@@ -1,6 +1,7 @@
 import { Box } from '@mui/material';
 import { Icon } from './Icon';
 import type { Project } from '@/data/types';
+import { tintBg, tintText } from '@/utils/tint';
 
 interface ProjectAvatarProps {
   project: Pick<Project, 'icon' | 'color'>;
@@ -15,8 +16,8 @@ export function ProjectAvatar({ project, size = 22 }: ProjectAvatarProps) {
         width: size,
         height: size,
         borderRadius: `${Math.round(size * 0.27)}px`,
-        background: project.color + '22',
-        color: project.color,
+        bgcolor: (t) => tintBg(t, project.color),
+        color: (t) => tintText(t, project.color),
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',

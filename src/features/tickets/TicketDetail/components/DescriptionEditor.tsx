@@ -36,7 +36,7 @@ export function DescriptionEditor({ value, onSave }: DescriptionEditorProps) {
     <Box
       sx={{
         marginTop: 3,
-        background: 'background.paper',
+        bgcolor: 'background.paper',
         border: 1,
         borderColor: 'divider',
         borderRadius: 1,
@@ -102,7 +102,7 @@ export function DescriptionEditor({ value, onSave }: DescriptionEditorProps) {
               fontFamily: monoFontFamily,
               fontSize: 13,
               lineHeight: 1.6,
-              background: 'action.hover',
+              bgcolor: 'action.hover',
               color: 'text.primary',
               outline: 'none',
             }}

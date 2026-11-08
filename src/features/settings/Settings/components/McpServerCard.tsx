@@ -86,7 +86,7 @@ export function McpServerCard() {
             width: 8,
             height: 8,
             borderRadius: '50%',
-            background: running ? 'success.main' : 'text.disabled',
+            bgcolor: running ? 'success.main' : 'text.disabled',
             animation: running ? 'pulseDot 2s infinite' : 'none',
           }}
         />
@@ -100,7 +100,7 @@ export function McpServerCard() {
             sx={{
               fontFamily: monoFontFamily,
               fontSize: 12,
-              background: 'action.hover',
+              bgcolor: 'action.hover',
               padding: '3px 8px',
               borderRadius: '4px',
               color: 'text.secondary',

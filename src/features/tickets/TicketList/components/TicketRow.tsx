@@ -29,7 +29,7 @@ export function TicketRow({ ticket, onClick }: TicketRowProps) {
         borderRadius: '6px',
         cursor: 'pointer',
         animation: 'slideIn 0.18s ease-out',
-        '&:hover': { background: 'action.hover' },
+        '&:hover': { bgcolor: 'action.hover' },
       }}
     >
       <StatusIcon status={ticket.status} />
