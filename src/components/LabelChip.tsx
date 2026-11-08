@@ -1,6 +1,7 @@
 import { Box } from '@mui/material';
 import { Icon } from './Icon';
 import { labelColor } from '@/utils/format';
+import { tintBg, tintText } from '@/utils/tint';
 import { useTranslation } from 'react-i18next';
 
 interface LabelChipProps {
@@ -19,8 +20,8 @@ export function LabelChip({ label, size = 'md', onRemove }: LabelChipProps) {
         fontSize: small ? 10.5 : 11.5,
         padding: small ? '2px 7px' : '3px 9px',
         borderRadius: '11px',
-        background: color + '22',
-        color,
+        bgcolor: (t) => tintBg(t, color),
+        color: (t) => tintText(t, color),
         fontWeight: 500,
         display: 'inline-flex',
         alignItems: 'center',

@@ -2,6 +2,7 @@ import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { Box, type BoxProps } from '@mui/material';
 import type { SystemStyleObject } from '@mui/system';
 import type { Theme } from '@mui/material/styles';
+import { tintBg, tintBorder, tintText } from '@/utils/tint';
 
 export type OptionButtonShape = 'square' | 'circle' | 'pill';
 
@@ -33,7 +34,7 @@ function shapeStyles(
       padding: 0,
       border: 2,
       borderColor: selected ? 'text.primary' : 'transparent',
-      background: color ?? 'transparent',
+      bgcolor: color ?? 'transparent',
     };
   }
 
@@ -41,10 +42,10 @@ function shapeStyles(
     return {
       fontSize: 12,
       padding: '4px 10px',
-      background: selected && color ? color + '22' : 'action.hover',
-      color: selected && color ? color : 'text.secondary',
+      bgcolor: (t) => (selected && color ? tintBg(t, color) : t.palette.action.hover),
+      color: (t) => (selected && color ? tintText(t, color) : t.palette.text.secondary),
       border: 1,
-      borderColor: selected && color ? color + '55' : 'divider',
+      borderColor: (t) => (selected && color ? tintBorder(t, color) : t.palette.divider),
       fontWeight: 500,
     };
   }
@@ -55,10 +56,11 @@ function shapeStyles(
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: selected && color ? color + '22' : 'action.hover',
-    color: selected && color ? color : 'text.secondary',
+    bgcolor: (t) => (selected && color ? tintBg(t, color) : t.palette.action.hover),
+    color: (t) => (selected && color ? tintText(t, color) : t.palette.text.secondary),
     border: selected ? 2 : 1,
-    borderColor: selected ? (color ?? 'primary.main') : 'divider',
+    borderColor: (t) =>
+      selected ? (color ? tintText(t, color) : t.palette.primary.main) : t.palette.divider,
   };
 }
 

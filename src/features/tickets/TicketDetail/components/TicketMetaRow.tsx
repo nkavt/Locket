@@ -54,7 +54,7 @@ function DueDateButton({ value, onChange }: DueDateButtonProps) {
       onClick={() => ref.current?.showPicker?.() || ref.current?.focus()}
       sx={{
         position: 'relative',
-        background: 'action.hover',
+        bgcolor: 'action.hover',
         border: 1,
         borderColor: 'divider',
         borderRadius: '4px',

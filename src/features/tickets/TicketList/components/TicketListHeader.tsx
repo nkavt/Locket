@@ -30,7 +30,7 @@ export function TicketListHeader({ project, tickets, action }: TicketListHeaderP
               sx={{
                 fontSize: 11,
                 color: 'text.disabled',
-                background: 'action.hover',
+                bgcolor: 'action.hover',
                 padding: '2px 7px',
                 borderRadius: '4px',
                 fontFamily: monoFontFamily,

@@ -7,7 +7,7 @@ import { useAppState } from '@/state/useAppState';
 function Shell() {
   const { hydrated } = useAppState();
   return (
-    <Box sx={{ height: '100vh', display: 'flex', background: 'background.default' }}>
+    <Box sx={{ height: '100vh', display: 'flex', bgcolor: 'background.default' }}>
       <Sidebar />
       <Box
         component="main"
