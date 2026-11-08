@@ -80,8 +80,8 @@ Releases are built by GitHub Actions from version tags. Bump the version in `pac
 
 ```sh
 git checkout main && git pull
-git tag v0.4.3
-git push origin v0.4.3
+git tag v0.1.2
+git push origin v0.1.2
 ```
 
 The workflow runs the tests, packages the macOS app for Apple silicon and Intel, and publishes a GitHub Release named after the tag with the `.dmg` and `.zip` files attached. The tag must match the version in `package.json` or the build fails.

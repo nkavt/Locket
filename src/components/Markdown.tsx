@@ -1,5 +1,10 @@
 import { Box } from '@mui/material';
-import ReactMarkdown from 'react-markdown';
+import type { ComponentPropsWithoutRef } from 'react';
+import ReactMarkdown, {
+  defaultUrlTransform,
+  type Components,
+  type UrlTransform,
+} from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { monoFontFamily } from '@/theme';
 
@@ -7,6 +12,30 @@ interface MarkdownProps {
   source: string;
   fontSize?: number;
 }
+
+/**
+ * Only inline data: images render, so viewing a ticket never makes a network request.
+ * Any other source shows its alt text as a link, which the main process opens in the browser.
+ */
+export function MarkdownImage({ src, alt, title }: ComponentPropsWithoutRef<'img'>) {
+  if (typeof src === 'string' && src.startsWith('data:image/')) {
+    return <img src={src} alt={alt} title={title} />;
+  }
+  if (!src) return <>{alt}</>;
+  return (
+    <a href={String(src)} title={title} target="_blank" rel="noreferrer">
+      {alt || String(src)}
+    </a>
+  );
+}
+
+const components: Components = { img: MarkdownImage };
+
+// The default transform strips data: URLs; keep them for image sources only.
+const urlTransform: UrlTransform = (url, key, node) =>
+  node.tagName === 'img' && key === 'src' && url.startsWith('data:image/')
+    ? url
+    : defaultUrlTransform(url);
 
 export function Markdown({ source, fontSize = 14 }: MarkdownProps) {
   return (
@@ -68,7 +97,13 @@ export function Markdown({ source, fontSize = 14 }: MarkdownProps) {
         '& input[type="checkbox"]': { marginRight: '0.4em' },
       }}
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{source}</ReactMarkdown>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={components}
+        urlTransform={urlTransform}
+      >
+        {source}
+      </ReactMarkdown>
     </Box>
   );
 }
