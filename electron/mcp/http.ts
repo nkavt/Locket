@@ -1,22 +1,18 @@
 import { EventEmitter } from 'node:events';
 import * as http from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { McpLogFile, type McpLogLine } from './log-file';
 import { createMcpServer, type McpServerHooks } from './server';
+
+export { MAX_LOG_LINES, type McpLogLine } from './log-file';
 
 export const MCP_PATH = '/mcp';
 export const MCP_HOST = '127.0.0.1';
-/** Lines kept in memory; the oldest are dropped first. */
-export const MAX_LOG_LINES = 1000;
 
 export interface McpStatus {
   running: boolean;
   port: number | null;
   url: string | null;
-}
-
-export interface McpLogLine {
-  ts: string;
-  line: string;
 }
 
 export interface McpHostEvents {
@@ -33,10 +29,15 @@ export interface McpHostEvents {
 export class McpHost extends EventEmitter<McpHostEvents> {
   private server: http.Server | null = null;
   private port: number | null = null;
-  private logLines: McpLogLine[] = [];
+  private readonly logFile: McpLogFile;
 
-  constructor(private readonly hooks: Omit<McpServerHooks, 'log'>) {
+  /** `logFilePath` is where the server log is written (e.g. `userData/logs/mcp.log`). */
+  constructor(
+    private readonly hooks: Omit<McpServerHooks, 'log'>,
+    logFilePath: string,
+  ) {
     super();
+    this.logFile = new McpLogFile(logFilePath);
   }
 
   status(): McpStatus {
@@ -47,20 +48,19 @@ export class McpHost extends EventEmitter<McpHostEvents> {
     };
   }
 
-  /** The buffered log, oldest first. Survives stop; cleared on the next start. */
+  /** The log file's newest lines, oldest first. Kept on stop and across app restarts; cleared on start. */
   logs(): McpLogLine[] {
-    return [...this.logLines];
+    return this.logFile.read();
   }
 
   clearLogs(): void {
-    this.logLines = [];
+    this.logFile.clear();
     this.emit('logsCleared');
   }
 
   private log(line: string): void {
     const entry = { ts: new Date().toISOString(), line };
-    this.logLines.push(entry);
-    if (this.logLines.length > MAX_LOG_LINES) this.logLines.shift();
+    this.logFile.append(entry);
     this.emit('log', entry);
   }
 
