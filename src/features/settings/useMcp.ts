@@ -13,6 +13,8 @@ export interface McpApi {
   available: boolean;
   status: McpStatus;
   logs: McpLogLine[];
+  /** False until the stored log has been read, so the UI can hold off on "no activity". */
+  logsLoaded: boolean;
   start: (port: number) => Promise<McpStatus>;
   stop: () => Promise<McpStatus>;
   clearLogs: () => Promise<void>;
@@ -27,6 +29,7 @@ export function useMcp(): McpApi {
   const available = !!bridge();
   const [status, setStatus] = useState<McpStatus>(STOPPED);
   const [logs, setLogs] = useState<McpLogLine[]>([]);
+  const [logsLoaded, setLogsLoaded] = useState(false);
 
   useEffect(() => {
     const mcp = bridge();
@@ -46,6 +49,7 @@ export function useMcp(): McpApi {
       if (!active) return;
       loaded = true;
       setLogs(lines);
+      setLogsLoaded(true);
     });
     return () => {
       active = false;
@@ -75,5 +79,5 @@ export function useMcp(): McpApi {
     await bridge()?.clearLogs();
   }, []);
 
-  return { available, status, logs, start, stop, clearLogs };
+  return { available, status, logs, logsLoaded, start, stop, clearLogs };
 }

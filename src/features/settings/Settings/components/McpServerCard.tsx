@@ -1,5 +1,5 @@
 import { Alert, Box, Button, Typography } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { SettingsCard } from './SettingsCard';
@@ -13,6 +13,8 @@ import { useMcp } from '../../useMcp';
 import type { SettingsFormValues } from '../Settings';
 
 const formatTs = (iso: string) => new Date(iso).toLocaleTimeString();
+/** How close to the bottom (px) still counts as "following" the log. */
+const STICK_THRESHOLD = 24;
 
 export function McpServerCard() {
   const { state, setSettings } = useAppState();
@@ -27,6 +29,20 @@ export function McpServerCard() {
   } = useFormContext<SettingsFormValues>();
 
   const running = mcp.status.running;
+
+  // Keep the log pinned to the newest line, like a terminal. Runs before paint,
+  // so on mount it opens already scrolled down. Scrolling up stops following
+  // until the user scrolls back to the bottom.
+  const logRef = useRef<HTMLDivElement>(null);
+  const followRef = useRef(true);
+  useLayoutEffect(() => {
+    const el = logRef.current;
+    if (el && followRef.current) el.scrollTop = el.scrollHeight;
+  }, [mcp.logs]);
+  const onLogScroll = () => {
+    const el = logRef.current;
+    if (el) followRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= STICK_THRESHOLD;
+  };
 
   // Mirror the real server state into app settings for anything else that reads it.
   useEffect(() => {
@@ -139,6 +155,9 @@ export function McpServerCard() {
       <Box sx={{ marginTop: 2.25 }}>
         <SectionLabel sx={{ marginBottom: 0.75 }}>{t('settings.mcp.recentActivity')}</SectionLabel>
         <Box
+          ref={logRef}
+          onScroll={onLogScroll}
+          data-testid="mcp-log"
           sx={{
             background: '#0d1117',
             color: '#c9d1d9',
@@ -146,15 +165,15 @@ export function McpServerCard() {
             borderColor: 'divider',
             borderRadius: '6px',
             padding: '10px 14px',
-            minHeight: 130,
-            maxHeight: 220,
+            // Fixed height so the card doesn't shift when the log loads or grows.
+            height: 220,
             overflowY: 'auto',
             fontFamily: monoFontFamily,
             fontSize: 12,
             lineHeight: 1.7,
           }}
         >
-          {mcp.logs.length === 0 ? (
+          {!mcp.logsLoaded && mcp.available ? null : mcp.logs.length === 0 ? (
             <Box sx={{ color: '#6e7681' }}>{t('settings.mcp.idle')}</Box>
           ) : (
             mcp.logs.map((l, i) => (

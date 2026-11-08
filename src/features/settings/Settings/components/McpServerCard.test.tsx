@@ -1,6 +1,6 @@
 import { FormProvider, useForm } from 'react-hook-form';
 import type { ReactNode } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { McpServerCard } from './McpServerCard';
 import { installMockLocket } from '@/test/mockLocket';
 import { act, renderWithProviders, screen, userEvent, waitFor } from '@/test/render';
@@ -85,5 +85,23 @@ describe('McpServerCard', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Start server' }));
     expect(await screen.findByText('Running')).toBeInTheDocument();
     expect(screen.queryByText('old run')).not.toBeInTheDocument();
+  });
+
+  it('opens the log scrolled to the newest line', async () => {
+    const mock = installMockLocket();
+    for (let i = 0; i < 50; i++) mock.emitLog(`line ${i}`);
+    // jsdom has no layout, so fake a scrollable box.
+    const height = vi.spyOn(Element.prototype, 'scrollHeight', 'get').mockReturnValue(1000);
+    try {
+      renderWithProviders(
+        <Form>
+          <McpServerCard />
+        </Form>,
+      );
+      expect(await screen.findByText('line 49')).toBeInTheDocument();
+      expect(screen.getByTestId('mcp-log').scrollTop).toBe(1000);
+    } finally {
+      height.mockRestore();
+    }
   });
 });
