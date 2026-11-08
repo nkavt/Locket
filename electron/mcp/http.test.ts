@@ -3,7 +3,7 @@ import { useTestDb } from '../test/db';
 
 vi.mock('electron', () => ({ app: { getVersion: () => '0.0.0-test' } }));
 
-const { McpHost, MCP_PATH } = await import('./http');
+const { McpHost, MCP_PATH, MAX_LOG_LINES } = await import('./http');
 
 const rpc = (url: string, body: unknown) =>
   fetch(url, {
@@ -86,5 +86,49 @@ describe('McpHost', () => {
     expect((await host.start(b)).port).toBe(b);
     await host.stop();
     expect(await host.stop()).toEqual({ running: false, port: null, url: null });
+  });
+
+  it('buffers logs, keeps them on stop and clears them on each start', async () => {
+    const host = new McpHost({});
+    const cleared = vi.fn();
+    host.on('logsCleared', cleared);
+    const a = 20000 + Math.floor(Math.random() * 20000);
+    await host.start(a);
+    await host.stop();
+    expect(host.logs().map((l) => l.line)).toEqual([
+      expect.stringMatching(/started/),
+      expect.stringMatching(/stopped/),
+    ]);
+
+    await host.start(a);
+    expect(cleared).toHaveBeenCalledTimes(2);
+    expect(host.logs()).toHaveLength(1);
+    expect(host.logs()[0].line).toMatch(/started/);
+
+    // Restart on another port also starts a fresh log.
+    await host.start(a + 1);
+    expect(host.logs().map((l) => l.line)).toEqual([expect.stringMatching(/started/)]);
+    await host.stop();
+
+    host.clearLogs();
+    expect(host.logs()).toEqual([]);
+  });
+
+  it('logs a failed start and caps the buffer', async () => {
+    const blocker = new McpHost({});
+    const port = 20000 + Math.floor(Math.random() * 20000);
+    await blocker.start(port);
+    const host = new McpHost({});
+    try {
+      await expect(host.start(port)).rejects.toThrow();
+      expect(host.logs().at(-1)?.line).toMatch(/failed to start/);
+    } finally {
+      await blocker.stop();
+    }
+
+    const log = (host as unknown as { log: (l: string) => void }).log.bind(host);
+    for (let i = 0; i < MAX_LOG_LINES + 50; i++) log(`line ${i}`);
+    expect(host.logs()).toHaveLength(MAX_LOG_LINES);
+    expect(host.logs()[0].line).toBe('line 50');
   });
 });

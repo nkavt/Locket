@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { McpLogLine, McpStatus } from '@/types/electron-api';
 
-const MAX_LOG_LINES = 200;
+/** Matches the main-process buffer (`MAX_LOG_LINES` in electron/mcp/http.ts). */
+const MAX_LOG_LINES = 1000;
 const STOPPED: McpStatus = { running: false, port: null, url: null };
 
 const bridge = () =>
@@ -14,10 +15,14 @@ export interface McpApi {
   logs: McpLogLine[];
   start: (port: number) => Promise<McpStatus>;
   stop: () => Promise<McpStatus>;
-  clearLogs: () => void;
+  clearLogs: () => Promise<void>;
 }
 
-/** Live view of the MCP server hosted by the Electron main process. */
+/**
+ * Live view of the MCP server hosted by the Electron main process. The log is
+ * owned by the main process: on mount we load its buffer, then follow new lines
+ * (like `tail -f`). The main process caps it and clears it on each server start.
+ */
 export function useMcp(): McpApi {
   const available = !!bridge();
   const [status, setStatus] = useState<McpStatus>(STOPPED);
@@ -26,12 +31,27 @@ export function useMcp(): McpApi {
   useEffect(() => {
     const mcp = bridge();
     if (!mcp) return;
-    void mcp.status().then(setStatus);
+    let active = true;
+    // Events that arrive before the snapshot are already part of it (IPC keeps order).
+    let loaded = false;
+    void mcp.status().then((s) => active && setStatus(s));
     const offStatus = mcp.onStatus(setStatus);
-    const offLog = mcp.onLog((line) => setLogs((ls) => [...ls.slice(-(MAX_LOG_LINES - 1)), line]));
+    const offLog = mcp.onLog((line) => {
+      if (loaded) setLogs((ls) => [...ls.slice(-(MAX_LOG_LINES - 1)), line]);
+    });
+    const offCleared = mcp.onLogsCleared(() => {
+      if (loaded) setLogs([]);
+    });
+    void mcp.getLogs().then((lines) => {
+      if (!active) return;
+      loaded = true;
+      setLogs(lines);
+    });
     return () => {
+      active = false;
       offStatus();
       offLog();
+      offCleared();
     };
   }, []);
 
@@ -51,7 +71,9 @@ export function useMcp(): McpApi {
     return next;
   }, []);
 
-  const clearLogs = useCallback(() => setLogs([]), []);
+  const clearLogs = useCallback(async () => {
+    await bridge()?.clearLogs();
+  }, []);
 
   return { available, status, logs, start, stop, clearLogs };
 }

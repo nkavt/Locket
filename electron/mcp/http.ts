@@ -5,6 +5,8 @@ import { createMcpServer, type McpServerHooks } from './server';
 
 export const MCP_PATH = '/mcp';
 export const MCP_HOST = '127.0.0.1';
+/** Lines kept in memory; the oldest are dropped first. */
+export const MAX_LOG_LINES = 1000;
 
 export interface McpStatus {
   running: boolean;
@@ -19,6 +21,7 @@ export interface McpLogLine {
 
 export interface McpHostEvents {
   log: [McpLogLine];
+  logsCleared: [];
   status: [McpStatus];
 }
 
@@ -30,6 +33,7 @@ export interface McpHostEvents {
 export class McpHost extends EventEmitter<McpHostEvents> {
   private server: http.Server | null = null;
   private port: number | null = null;
+  private logLines: McpLogLine[] = [];
 
   constructor(private readonly hooks: Omit<McpServerHooks, 'log'>) {
     super();
@@ -43,8 +47,21 @@ export class McpHost extends EventEmitter<McpHostEvents> {
     };
   }
 
+  /** The buffered log, oldest first. Survives stop; cleared on the next start. */
+  logs(): McpLogLine[] {
+    return [...this.logLines];
+  }
+
+  clearLogs(): void {
+    this.logLines = [];
+    this.emit('logsCleared');
+  }
+
   private log(line: string): void {
-    this.emit('log', { ts: new Date().toISOString(), line });
+    const entry = { ts: new Date().toISOString(), line };
+    this.logLines.push(entry);
+    if (this.logLines.length > MAX_LOG_LINES) this.logLines.shift();
+    this.emit('log', entry);
   }
 
   async start(port: number): Promise<McpStatus> {
@@ -52,18 +69,27 @@ export class McpHost extends EventEmitter<McpHostEvents> {
       if (this.port === port) return this.status();
       await this.stop();
     }
+    // Each (re)start begins a fresh log; stopping keeps it so the reason stays visible.
+    this.clearLogs();
     const allowedHosts = [`${MCP_HOST}:${port}`, `localhost:${port}`];
     const server = http.createServer((req, res) => {
       void this.handle(req, res, allowedHosts);
     });
 
-    await new Promise<void>((resolve, reject) => {
-      server.once('error', reject);
-      server.listen(port, MCP_HOST, () => {
-        server.off('error', reject);
-        resolve();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(port, MCP_HOST, () => {
+          server.off('error', reject);
+          resolve();
+        });
       });
-    });
+    } catch (err) {
+      this.log(
+        `failed to start on port ${port}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      throw err;
+    }
 
     this.server = server;
     this.port = port;
