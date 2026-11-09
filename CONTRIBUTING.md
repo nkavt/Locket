@@ -33,6 +33,7 @@ You don't need write access. Work in your own fork:
    npx tsc -p electron --noEmit
    npx prettier --check src electron   # npm run format fixes it
    npm test
+   npm run build
    ```
 
 6. Push to your fork and open a pull request into `main`.
@@ -41,7 +42,7 @@ You don't need write access. Work in your own fork:
 
 - Keep each PR to one change. Unrelated fixes belong in separate PRs.
 - Explain **why** as well as **what**, and how you tested it. For UI changes, add before/after screenshots in light and dark mode.
-- CI must pass. CI on PRs from first-time contributors starts after a maintainer approves the run.
+- CI must pass. CI on PRs from outside contributors starts after a maintainer approves the run.
 - A maintainer reviews every PR. PRs are squash-merged, so the PR title becomes the commit message on `main`. Write it as a short imperative sentence, like "Fix comments appearing twice".
 - Don't bump the version in `package.json`. That happens in a separate release PR.
 

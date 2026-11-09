@@ -12,7 +12,7 @@
 
 ## Checklist
 
-- [ ] `npm run lint`, `npx tsc -b`, `npx tsc -p electron --noEmit` and `npm test` pass
+- [ ] `npm run lint`, `npx tsc -b`, `npx tsc -p electron --noEmit`, `npm test` and `npm run build` pass
 - [ ] `npx prettier --check src electron` passes
 - [ ] Tests added or updated where it makes sense
 - [ ] No version bump in `package.json`

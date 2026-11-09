@@ -9,6 +9,10 @@ updates:
       # One PR per week for routine minor/patch bumps instead of one per package.
       minor-and-patch:
         update-types: [minor, patch]
+      # Security fixes also land as a single PR instead of one per package.
+      security:
+        applies-to: security-updates
+        patterns: ['*']
 
   - package-ecosystem: github-actions
     directory: /

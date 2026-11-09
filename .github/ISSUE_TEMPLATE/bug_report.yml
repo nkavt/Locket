@@ -28,7 +28,7 @@ body:
     attributes:
       label: Locket version
       description: Shown under the app name in the sidebar.
-      placeholder: v0.1.3
+      placeholder: vX.Y.Z
     validations:
       required: true
   - type: dropdown
