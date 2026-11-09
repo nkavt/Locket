@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, type Tray } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
@@ -8,6 +8,7 @@ import { initDb } from './db';
 import { registerDataIpc } from './ipc/data';
 import { McpHost } from './mcp/http';
 import { isAllowedExternalUrl, isDevServerUrl } from './navigation';
+import { createTray } from './tray';
 
 interface PersistedSettings {
   mcpPort: number;
@@ -86,7 +87,10 @@ mcp.on('status', (status) => broadcast('mcp:status', status));
 
 const iconPath = path.join(__dirname, '..', 'build', 'icon.png');
 
-const createWindow = (): void => {
+// Held so the tray icon isn't garbage-collected out of the menu bar.
+let tray: Tray | null = null;
+
+const createWindow = (): BrowserWindow => {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -118,6 +122,16 @@ const createWindow = (): void => {
   } else {
     void win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
   }
+  return win;
+};
+
+/** Show and focus the main window, creating it if it was closed. */
+const openLocket = (): void => {
+  const win = BrowserWindow.getAllWindows()[0] ?? createWindow();
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+  app.focus({ steal: true });
 };
 
 app.whenReady().then(async () => {
@@ -142,6 +156,12 @@ app.whenReady().then(async () => {
   ipcMain.handle('mcp:clearLogs', () => mcp.clearLogs());
 
   createWindow();
+  tray = createTray({
+    mcp,
+    getPort: async () => (await readSettings()).mcpPort,
+    openLocket,
+    appIconPath: iconPath,
+  });
 
   // Handy for scripted testing: LOCKET_MCP_AUTOSTART=1 electron .
   if (process.env.LOCKET_MCP_AUTOSTART) {
@@ -158,6 +178,11 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
   void mcp.stop();
+});
+
+app.on('will-quit', () => {
+  tray?.destroy();
+  tray = null;
 });
 
 app.on('window-all-closed', () => {
