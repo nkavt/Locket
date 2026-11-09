@@ -88,6 +88,12 @@ The workflow runs the tests, packages the macOS app for Apple silicon and Intel,
 
 Builds are not code-signed yet. On first launch, right-click the app and choose **Open**, or run `xattr -cr /Applications/Locket.app`.
 
+## Contributing
+
+Contributions are welcome. Fork the repo, make your change on a branch and open a pull request into `main`. See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and the checks CI runs. Questions and ideas go in [Discussions](https://github.com/nkavt/Locket/discussions), and security problems should be [reported privately](SECURITY.md).
+
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## License
 
 [MIT](LICENSE)
