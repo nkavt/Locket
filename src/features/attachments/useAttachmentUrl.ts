@@ -4,9 +4,7 @@ import { useAttachmentScope } from './AttachmentScope';
 import { ticketAttachments } from '@/data/attachments';
 
 export type AttachmentUrl =
-  | { status: 'loading' }
-  | { status: 'ready'; url: string }
-  | { status: 'missing' };
+  { status: 'loading' } | { status: 'ready'; url: string } | { status: 'missing' };
 
 /**
  * Resolve a saved attachment of the surrounding ticket (see `AttachmentScope`) to something

@@ -77,7 +77,10 @@
     "wait-on": "^9.5.1"
   },
   "overrides": {
-    "minimatch@>=7.0.0 <11.0.1": "^11.0.5"
+    "minimatch@>=7.0.0 <11.0.1": "^11.0.5",
+    "typeorm": {
+      "better-sqlite3": "$better-sqlite3"
+    }
   },
   "description": "Local-first desktop task planner with an MCP server.",
   "author": "Nikoloz Kavtaradze <n.kavtaradze94@gmail.com>",

@@ -18,9 +18,10 @@ interface CommentItemProps {
 export function CommentItem({ comment, usedIn, onDelete, onRemoveAttachment }: CommentItemProps) {
   const { t } = useTranslation();
   const [hover, setHover] = useState(false);
-  const attached = (comment.attachments ?? []).map(
-    (a): GridItem => ({ name: a.name, usedIn: usedIn?.(a.name) }),
-  );
+  const attached = (comment.attachments ?? []).map((a): GridItem => ({
+    name: a.name,
+    usedIn: usedIn?.(a.name),
+  }));
   return (
     <Box
       onMouseEnter={() => setHover(true)}
