@@ -25,10 +25,17 @@ export function McpServerCard() {
   const [busy, setBusy] = useState(false);
   const {
     register,
+    trigger,
     formState: { errors, isValid, dirtyFields },
   } = useFormContext<SettingsFormValues>();
 
   const running = mcp.status.running;
+
+  // The port input is disabled while the server runs. react-hook-form (7.91+) doesn't recompute
+  // isValid when it's re-enabled, which left Start disabled after a Stop, so re-validate here.
+  useEffect(() => {
+    if (!running) void trigger('port');
+  }, [running, trigger]);
 
   // Keep the log pinned to the newest line, like a terminal. Runs before paint,
   // so on mount it opens already scrolled down. Scrolling up stops following
