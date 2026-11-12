@@ -55,13 +55,11 @@ export function usePendingAttachments(
     pending,
     /** Spread onto <AttachmentGrid>: every pending image, with insert and delete. */
     grid: {
-      items: pending.map(
-        (a): GridItem => ({
-          name: a.name,
-          url: a.previewUrl,
-          usedIn: inText.has(a.name) ? 'text' : undefined,
-        }),
-      ),
+      items: pending.map((a): GridItem => ({
+        name: a.name,
+        url: a.previewUrl,
+        usedIn: inText.has(a.name) ? 'text' : undefined,
+      })),
       onInsert: (item: GridItem) => insert(item.name),
       onRemove: remove,
     },
