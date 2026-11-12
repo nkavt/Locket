@@ -1,6 +1,7 @@
 import * as store from '../attachments/store';
 import { repos, withReader, withTransaction } from '../db';
 import type { PersistedData } from '../db/types';
+import { DEFAULT_PROJECT_ICON, isMaterialSymbol } from '../projects/icons';
 
 /**
  * Whole-workspace access. Used for renderer hydration, the change broadcast,
@@ -50,7 +51,13 @@ export const replaceSnapshot = (data: PersistedData): Promise<void> =>
     await repos.projects.clear(em);
     await repos.counters.clear(em);
 
-    await repos.projects.insertMany(em, data.projects);
+    // Names from older data may be ones the font can't draw: those fall back to the default.
+    await repos.projects.insertMany(
+      em,
+      data.projects.map((p) =>
+        isMaterialSymbol(p.icon) ? p : { ...p, icon: DEFAULT_PROJECT_ICON },
+      ),
+    );
     await repos.tickets.insertMany(em, data.tickets);
     await repos.comments.insertMany(
       em,

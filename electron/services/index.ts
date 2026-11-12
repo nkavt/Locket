@@ -16,6 +16,7 @@ export {
   deleteProject,
   getProject,
   listProjects,
+  repairProjectIcons,
   updateProject,
   type ProjectSummary,
 } from './projects';

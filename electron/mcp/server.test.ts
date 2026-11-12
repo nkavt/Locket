@@ -170,6 +170,34 @@ describe('MCP server', () => {
     expect(onDataChanged).toHaveBeenCalledTimes(4);
   });
 
+  it('takes any Material Symbols icon and explains unknown ones', async () => {
+    const { client } = await connect();
+    const tools = await client.listTools();
+    const createTool = tools.tools.find((t) => t.name === 'create_project')!;
+    expect(JSON.stringify(createTool.inputSchema)).toMatch(/Material Symbols.*storefront/);
+
+    const shop = parse(
+      await client.callTool({
+        name: 'create_project',
+        arguments: { name: 'Shop', slug: 'shop', icon: 'storefront', color: '#229ED9' },
+      }),
+    );
+    expect(shop).toMatchObject({ icon: 'storefront', color: '#229ED9' });
+
+    const bad = await client.callTool({
+      name: 'update_project',
+      arguments: { id: 'p1', icon: 'definitely_not_an_icon' },
+    });
+    expect(bad.isError).toBe(true);
+    expect(text(bad)).toMatch(/Unknown icon "definitely_not_an_icon".*e\.g\. storefront/);
+
+    const badColor = await client.callTool({
+      name: 'update_project',
+      arguments: { id: 'p1', color: 'blue' },
+    });
+    expect(badColor.isError).toBe(true);
+  });
+
   it('creates and deletes projects, cascading to tickets', async () => {
     const onDataChanged = vi.fn();
     const { client } = await connect({ onDataChanged });

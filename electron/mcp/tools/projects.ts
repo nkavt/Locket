@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { createProject, deleteProject, listProjects, updateProject } from '../../services';
 import { compact, guarded, json, type McpContext } from '../context';
-import { SLUG } from '../schemas';
+import { ICON_SCHEMA, COLOR_SCHEMA, SLUG } from '../schemas';
 
 export function registerProjectTools(server: McpServer, { log, changed }: McpContext): void {
   server.registerTool(
@@ -36,8 +36,8 @@ export function registerProjectTools(server: McpServer, { log, changed }: McpCon
       inputSchema: {
         name: z.string().min(1),
         slug: SLUG,
-        icon: z.string().optional().describe('Icon name, e.g. rocket_launch, bolt, science'),
-        color: z.string().optional().describe('Hex colour, e.g. #1976d2'),
+        icon: ICON_SCHEMA.optional(),
+        color: COLOR_SCHEMA.optional(),
         description: z.string().optional().describe('Markdown'),
       },
     },
@@ -57,8 +57,8 @@ export function registerProjectTools(server: McpServer, { log, changed }: McpCon
       inputSchema: {
         id: z.string().describe('Project id from list_projects'),
         name: z.string().min(1).optional(),
-        icon: z.string().optional(),
-        color: z.string().optional(),
+        icon: ICON_SCHEMA.optional(),
+        color: COLOR_SCHEMA.optional(),
         description: z.string().optional().describe('Markdown, replaces the whole description'),
       },
       annotations: { idempotentHint: true },
