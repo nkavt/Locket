@@ -72,7 +72,7 @@ src/
 | Windows  | `%APPDATA%\locket\locket.db`                     |
 | Linux    | `~/.config/locket/locket.db`                     |
 
-`settings.json` sits next to it. Unpackaged runs (`npm run dev`, `npm start`) use `temp/.config/` in the project instead, so development never touches your real data. Point it elsewhere with `LOCKET_USER_DATA_DIR=/some/dir npm run dev` (this also works for packaged builds). **Reset workspace** in Settings wipes the database and recreates the Welcome project.
+`settings.json` sits next to it. Unpackaged runs (`npm run dev`, `npm start`) use `temp/.config/` in the project instead, so development never touches your real data. Point it elsewhere with `LOCKET_USER_DATA_DIR=/some/dir npm run dev`. Packaged builds ignore this variable, so a globally set one can't move the installed app's data. **Reset workspace** in Settings wipes the database and recreates the Welcome project.
 
 ## Releasing
 
