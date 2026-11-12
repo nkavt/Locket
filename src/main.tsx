@@ -7,6 +7,8 @@ import '@fontsource/roboto/500.css';
 import '@fontsource/roboto/700.css';
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
+// Project icons: any Material Symbols name, drawn by the bundled font (never a CDN).
+import 'material-symbols/outlined.css';
 import './index.css';
 import { router } from './router';
 

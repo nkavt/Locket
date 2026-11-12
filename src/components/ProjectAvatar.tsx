@@ -1,6 +1,7 @@
 import { Box } from '@mui/material';
-import { Icon } from './Icon';
+import { MaterialSymbol } from './MaterialSymbol';
 import type { Project } from '@/data/types';
+import { DEFAULT_PROJECT_ICON, isMaterialSymbol } from '@/data/projectIcons';
 import { tintBg, tintText } from '@/utils/tint';
 
 interface ProjectAvatarProps {
@@ -24,7 +25,10 @@ export function ProjectAvatar({ project, size = 22 }: ProjectAvatarProps) {
         flexShrink: 0,
       }}
     >
-      <Icon name={project.icon} size={Math.round(size * 0.63)} />
+      <MaterialSymbol
+        name={isMaterialSymbol(project.icon) ? project.icon : DEFAULT_PROJECT_ICON}
+        size={Math.round(size * 0.63)}
+      />
     </Box>
   );
 }

@@ -137,7 +137,7 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
               <IconPicker
                 value={field.value}
                 onChange={field.onChange}
-                icons={PROJECT_ICONS}
+                suggestions={PROJECT_ICONS}
                 color={color}
               />
             )}

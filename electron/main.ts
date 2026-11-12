@@ -5,6 +5,7 @@ import * as os from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { initDb } from './db';
+import { repairProjectIcons } from './services';
 import { registerDataIpc } from './ipc/data';
 import { McpHost } from './mcp/http';
 import { isAllowedExternalUrl, isDevServerUrl } from './navigation';
@@ -159,6 +160,11 @@ app.whenReady().then(async () => {
   // Packaged builds get the icon from the bundle; in dev set the Dock icon by hand.
   if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(iconPath);
   await initDb();
+  const repaired = await repairProjectIcons().catch((err) => {
+    console.error('[projects] failed to check icons:', err);
+    return [];
+  });
+  if (repaired.length) console.log(`[projects] reset unknown icons on ${repaired.join(', ')}`);
 
   ipcMain.handle('settings:get', () => readSettings());
   ipcMain.handle('settings:set', (_e, patch: Partial<PersistedSettings>) => writeSettings(patch));
