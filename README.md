@@ -12,7 +12,10 @@ Locket is a desktop app for planning work in projects and tickets. Everything is
 
 - **Projects and tickets.** Each project has a short slug that prefixes its ticket ids, like `web-12`. Tickets have a status, priority, labels, an optional due date and a markdown description.
 - **Comments.** A flat, chronological thread under every ticket.
+- **Images.** Paste, drop or pick screenshots in a ticket description, a comment or a new ticket, and show them inline with `![](name.png)`. Agents can attach images too, for example before and after shots of a UI change.
+- **Project icons.** Give each project a colour and any [Material Symbols](https://fonts.google.com/icons) icon. The icon font ships with the app, so nothing is fetched.
 - **MCP server.** Start it from Settings and point an agent at `http://127.0.0.1:7821/mcp` (Streamable HTTP). Changes made by agents show up in the app immediately.
+- **Menu bar.** Start and stop the MCP server from the menu bar icon, even with the window closed. Closing the window keeps Locket running in the background, so agents can keep working.
 - **Local only.** No account, no sync, no network calls. Your data lives in one SQLite file.
 
 ## Using it with an agent
@@ -23,7 +26,9 @@ Start the server in **Settings**, then add Locket to your MCP client. For Claude
 claude mcp add --transport http locket http://127.0.0.1:7821/mcp
 ```
 
-Tools exposed: `list_projects`, `create_project`, `update_project`, `delete_project`, `list_tickets`, `get_ticket`, `create_ticket`, `update_ticket`, `delete_ticket`, `add_comment`.
+Tools exposed: `list_projects`, `create_project`, `update_project`, `delete_project`, `list_tickets`, `get_ticket`, `create_ticket`, `update_ticket`, `delete_ticket`, `add_comment`, `attach_images`, `get_attachment`, `delete_attachment`.
+
+`create_ticket` and `add_comment` also take `images`, each a local file `path` or base64 `data`. Every image gets a name that is unique within its ticket. Write `![](name.png)` in a description or comment to show it inline. Images that aren't referenced appear as thumbnails. `get_attachment` returns an image so the agent can look at it.
 
 Resources: `locket://projects` (JSON) and `locket://tickets/{id}` (markdown).
 
