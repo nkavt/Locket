@@ -8,6 +8,16 @@ import { initDb } from './db';
 import { registerDataIpc } from './ipc/data';
 import { McpHost } from './mcp/http';
 import { isAllowedExternalUrl, isDevServerUrl } from './navigation';
+import { resolveUserDataDir } from './user-data';
+
+// Must run before anything reads userData (settings, DB, MCP log, Chromium storage).
+const userDataDir = resolveUserDataDir({
+  envDir: process.env.LOCKET_USER_DATA_DIR,
+  isPackaged: app.isPackaged,
+  appPath: app.getAppPath(),
+  cwd: process.cwd(),
+});
+if (userDataDir) app.setPath('userData', userDataDir);
 
 interface PersistedSettings {
   mcpPort: number;
