@@ -8,7 +8,36 @@
     "back": "Back",
     "preview": "Preview",
     "moreActions": "More actions",
-    "untitled": "Untitled"
+    "untitled": "Untitled",
+    "close": "Close"
+  },
+  "attachments": {
+    "title": "Attachments",
+    "image": "Image",
+    "attach": "Attach images",
+    "dropHere": "Drop images to attach",
+    "view": "View {{name}}",
+    "insert": "Show inline in text",
+    "insertNamed": "Show {{name}} inline in text",
+    "remove": "Delete image",
+    "removeNamed": "Delete {{name}}",
+    "inUse": {
+      "description": "In use in the description. Take it out of the text to delete it.",
+      "comment": "In use in a comment, so it can't be deleted.",
+      "text": "In use in the text. Take it out of the text to delete it."
+    },
+    "previous": "Previous image",
+    "next": "Next image",
+    "position": "{{current}} of {{total}}",
+    "missing": "Image no longer available",
+    "missingNamed": "{{name}} (image no longer available)",
+    "tooLarge": "\"{{name}}\" is larger than {{mb}} MB",
+    "unsupported": "\"{{name}}\" is not a supported image (PNG, JPEG, GIF, WebP, AVIF or BMP)",
+    "added_one": "Image attached",
+    "added_other": "{{count}} images attached",
+    "removed": "Image deleted",
+    "failed": "Could not save images: {{message}}",
+    "hint": "Pasted images go into the text. Others show as thumbnails: reference one by name with ![](name.png), or hover it and pick “Show inline in text”."
   },
   "app": {
     "name": "Locket",
@@ -111,8 +140,7 @@
     "bold": "Bold",
     "code": "Code",
     "bulletedList": "Bulleted list",
-    "submit": "Comment",
-    "removeImage": "Remove {{name}}"
+    "submit": "Comment"
   },
   "settings": {
     "title": "Settings",
@@ -142,11 +170,26 @@
     },
     "storage": {
       "title": "Storage",
-      "subtitle": "Projects, tickets and comments are stored in a local database on this machine.",
+      "subtitle": "Projects, tickets and comments are stored in a local database on this machine. Images are kept as files next to it.",
+      "images_one": "{{count}} image · {{size}}",
+      "images_other": "{{count}} images · {{size}}",
+      "imagesTitle": "Images",
+      "notCalculated": "Size not calculated yet",
+      "calculate": "Calculate",
+      "recalculate": "Recalculate",
+      "leftover_one": "{{count}} leftover from deleted tickets or comments ({{size}})",
+      "leftover_other": "{{count}} leftovers from deleted tickets or comments ({{size}})",
+      "noLeftover": "no leftovers",
+      "cleanUp": "Clean up",
+      "cleanedUp_one": "Removed {{count}} leftover image, freed {{size}}",
+      "cleanedUp_other": "Removed {{count}} leftover images, freed {{size}}",
+      "nothingToClean": "Nothing to clean up",
       "reset": "Reset workspace",
+      "resetDetail": "Delete all projects, tickets, comments and images and start over",
+      "resetAction": "Reset",
       "resetConfirm": {
         "title": "Reset workspace?",
-        "message": "This will delete all projects, tickets, and comments and start over with the Welcome project. This action cannot be undone.",
+        "message": "This will delete all projects, tickets, comments and images and start over with the Welcome project. This action cannot be undone.",
         "confirm": "Reset"
       },
       "resetDone": "Workspace reset"

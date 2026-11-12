@@ -99,6 +99,36 @@ describe('useAppStateStore (browser mode)', () => {
     expect(after.comments).toHaveLength(before);
   });
 
+  it('attaches, serves and removes ticket images', async () => {
+    const { result } = await renderStore();
+    const ticket = result.current.state.tickets[0];
+    const image = { name: 'a.png', mime: 'image/png', data: new Uint8Array([1]) };
+    await act(() => result.current.addTicketAttachments(ticket.id, [image]));
+    expect(result.current.state.tickets[0].attachments).toEqual([
+      { name: 'a.png', mime: 'image/png', size: 1 },
+    ]);
+    expect(await result.current.attachmentUrl(ticket.id, 'a.png')).toBe(
+      'data:image/png;base64,AQ==',
+    );
+    // Names are per ticket: another ticket's a.png is a different image.
+    expect(await result.current.attachmentUrl('other-1', 'a.png')).toBeNull();
+
+    await act(() => result.current.deleteAttachment(ticket.id, 'a.png'));
+    expect(result.current.state.tickets[0].attachments).toEqual([]);
+    expect(await result.current.attachmentUrl(ticket.id, 'a.png')).toBeNull();
+  });
+
+  it('drops comment images with their comment', async () => {
+    const { result } = await renderStore();
+    const ticket = result.current.state.tickets[0];
+    const image = { name: 'b.png', mime: 'image/png', data: new Uint8Array([2]) };
+    await act(() => result.current.addComment(ticket.id, '', 'Sam', [image]));
+    const comment = result.current.state.tickets[0].comments.at(-1)!;
+    expect(comment.attachments?.map((a) => a.name)).toEqual(['b.png']);
+    await act(() => result.current.deleteComment(ticket.id, comment.id));
+    expect(await result.current.attachmentUrl(ticket.id, 'b.png')).toBeNull();
+  });
+
   it('persists every change to localStorage', async () => {
     const { result } = await renderStore();
     await act(async () => {

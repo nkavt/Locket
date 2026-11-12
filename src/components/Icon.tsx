@@ -50,6 +50,10 @@ import Public from '@mui/icons-material/Public';
 import Terminal from '@mui/icons-material/Terminal';
 import Info from '@mui/icons-material/Info';
 import ErrorIcon from '@mui/icons-material/Error';
+import ChevronLeft from '@mui/icons-material/ChevronLeft';
+import ChevronRight from '@mui/icons-material/ChevronRight';
+import AddPhotoAlternate from '@mui/icons-material/AddPhotoAlternateOutlined';
+import InputIcon from '@mui/icons-material/Input';
 import type { ComponentType } from 'react';
 
 const ICON_MAP: Record<string, ComponentType<SvgIconProps>> = {
@@ -104,6 +108,10 @@ const ICON_MAP: Record<string, ComponentType<SvgIconProps>> = {
   terminal: Terminal,
   info: Info,
   error: ErrorIcon,
+  chevron_left: ChevronLeft,
+  chevron_right: ChevronRight,
+  add_photo_alternate: AddPhotoAlternate,
+  input: InputIcon,
 };
 
 interface IconProps extends Omit<SvgIconProps, 'fontSize'> {

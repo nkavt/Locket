@@ -10,11 +10,33 @@ export interface PersistedProject {
   description: string;
 }
 
+/** An image stored with a ticket or a comment. The bytes travel separately (see `AttachmentData`). */
+export interface PersistedAttachment {
+  /** Unique within the ticket; markdown shows it with `![](<name>)`. */
+  name: string;
+  mime: string;
+  size: number;
+}
+
+/** An image being added. The caller picks the name so markdown can reference it before saving. */
+export interface NewAttachment {
+  name: string;
+  mime: string;
+  data: Uint8Array;
+}
+
+export interface AttachmentData {
+  mime: string;
+  data: Uint8Array;
+}
+
 export interface PersistedComment {
   id: number;
   author: string;
   ts: string;
   body: string;
+  /** Always filled when read from the database; optional so older payloads still load. */
+  attachments?: PersistedAttachment[];
 }
 
 export interface PersistedTicket {
@@ -30,6 +52,8 @@ export interface PersistedTicket {
   created: string;
   updated: string;
   comments: PersistedComment[];
+  /** Images attached to the ticket itself (not to its comments). Always filled when read. */
+  attachments?: PersistedAttachment[];
 }
 
 /** The whole workspace as one document, which is how it is loaded and saved. */
@@ -63,6 +87,7 @@ export interface NewTicketInput {
   labels?: string[];
   due?: string | null;
   author: string;
+  attachments?: NewAttachment[];
 }
 
 export type TicketPatch = Partial<

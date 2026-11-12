@@ -3,7 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { CommentItem } from './components/CommentItem';
 import { CommentComposer } from './components/CommentComposer';
 import { Icon } from '@/components/Icon';
+import { ticketNames } from '@/features/attachments/names';
+import { imageUsage } from '@/features/attachments/usage';
+import { useDeleteAttachment } from '@/features/attachments/useDeleteAttachment';
 import { useAppState } from '@/state/useAppState';
+import { useSnackbar } from '@/state/useSnackbar';
 import type { Ticket } from '@/data/types';
 
 interface CommentsThreadProps {
@@ -13,7 +17,13 @@ interface CommentsThreadProps {
 export function CommentsThread({ ticket }: CommentsThreadProps) {
   const { t } = useTranslation();
   const { addComment, deleteComment } = useAppState();
+  const snack = useSnackbar();
   const comments = ticket.comments || [];
+  const usedIn = imageUsage(
+    ticket.description || '',
+    comments.map((c) => c.body),
+  );
+  const removeImage = useDeleteAttachment(ticket.id);
 
   return (
     <Box sx={{ marginTop: 4 }}>
@@ -36,11 +46,25 @@ export function CommentsThread({ ticket }: CommentsThreadProps) {
           </Typography>
         )}
         {comments.map((c) => (
-          <CommentItem key={c.id} comment={c} onDelete={() => deleteComment(ticket.id, c.id)} />
+          <CommentItem
+            key={c.id}
+            comment={c}
+            usedIn={usedIn}
+            onDelete={() => deleteComment(ticket.id, c.id)}
+            onRemoveAttachment={(name) => void removeImage(name)}
+          />
         ))}
       </Box>
 
-      <CommentComposer onSubmit={(body) => addComment(ticket.id, body)} />
+      <CommentComposer
+        takenNames={ticketNames(ticket)}
+        onSubmit={(body, attachments) =>
+          addComment(ticket.id, body, undefined, attachments).catch((err: Error) => {
+            snack(t('attachments.failed', { message: err.message }), { severity: 'error' });
+            throw err;
+          })
+        }
+      />
     </Box>
   );
 }

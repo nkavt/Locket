@@ -13,7 +13,8 @@ const CSP = [
   "default-src 'self'",
   // MUI/Emotion inject <style> tags at runtime.
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data:",
+  // blob: is how stored attachments are shown; those URLs are minted in-page and never hit the network.
+  "img-src 'self' data: blob:",
   "font-src 'self'",
   "connect-src 'self'",
 ].join('; ');

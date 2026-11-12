@@ -1,81 +1,45 @@
 import { Avatar, Box, Button, IconButton, Tooltip } from '@mui/material';
-import { useState, type ClipboardEvent, type DragEvent, type FocusEvent } from 'react';
+import { useRef, useState, type FocusEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/Icon';
+import { AttachmentGrid } from '@/features/attachments/AttachmentGrid';
+import { usePendingAttachments } from '@/features/attachments/usePendingAttachments';
 import { useCurrentUser } from '@/state/useCurrentUser';
+import type { NewAttachment } from '@/types/electron-api';
 import { avatarColor, initials } from '@/utils/format';
 
 interface CommentComposerProps {
-  onSubmit: (body: string) => void;
+  /** Image names already on the ticket, so new ones get a free name. */
+  takenNames?: Set<string>;
+  /** Rejecting keeps the draft in place. */
+  onSubmit: (body: string, attachments: NewAttachment[]) => Promise<void> | void;
 }
 
-interface ImageItem {
-  name: string;
-  dataUrl: string;
-}
-
-function readAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
-
-export function CommentComposer({ onSubmit }: CommentComposerProps) {
+export function CommentComposer({ takenNames, onSubmit }: CommentComposerProps) {
   const [draft, setDraft] = useState('');
-  const [images, setImages] = useState<ImageItem[]>([]);
   const [focused, setFocused] = useState(false);
+  const textarea = useRef<HTMLTextAreaElement>(null);
+  const images = usePendingAttachments(draft, setDraft, textarea, takenNames);
   const currentUser = useCurrentUser();
   const { t } = useTranslation();
 
-  const canSubmit = !!draft.trim() || images.length > 0;
+  const canSubmit = !!draft.trim() || images.pending.length > 0;
 
   const clear = () => {
     setDraft('');
-    setImages([]);
+    images.reset();
     setFocused(false);
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (!canSubmit) return;
-    let body = draft.trim();
-    images.forEach((img) => {
-      body += `\n\n![${img.name}](${img.dataUrl})`;
-    });
-    onSubmit(body);
-    clear();
-  };
-
-  // Images are embedded as data URLs so they survive reloads (blob URLs would not).
-  const addFiles = (files: Iterable<File>) => {
-    for (const f of files) {
-      if (!f.type.startsWith('image/')) continue;
-      void readAsDataUrl(f).then((dataUrl) =>
-        setImages((arr) => [...arr, { name: f.name || 'pasted-image.png', dataUrl }]),
-      );
+    try {
+      // Sent as typed: leading or trailing blank lines may be intentional.
+      await onSubmit(draft, images.toSave());
+      clear();
+    } catch {
+      // Keep the draft and images so nothing is lost; the caller reports the error.
     }
-  };
-
-  const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
-    const files = Array.from(e.clipboardData?.items || [])
-      .filter((it) => it.type.startsWith('image/'))
-      .map((it) => it.getAsFile())
-      .filter((f): f is File => !!f);
-    if (files.length) {
-      e.preventDefault();
-      addFiles(files);
-    }
-  };
-
-  const pickFiles = () => {
-    const inp = document.createElement('input');
-    inp.type = 'file';
-    inp.accept = 'image/*';
-    inp.multiple = true;
-    inp.onchange = () => inp.files && addFiles(inp.files);
-    inp.click();
   };
 
   const insert = (text: string) => setDraft((d) => d + text);
@@ -91,30 +55,29 @@ export function CommentComposer({ onSubmit }: CommentComposerProps) {
         // buttons stay clickable while the draft is still empty.
         onBlur={(e: FocusEvent<HTMLDivElement>) => {
           if (e.currentTarget.contains(e.relatedTarget)) return;
-          if (!draft && images.length === 0) setFocused(false);
+          if (!draft && images.pending.length === 0) setFocused(false);
         }}
-        onDragOver={(e: DragEvent<HTMLDivElement>) => e.preventDefault()}
-        onDrop={(e: DragEvent<HTMLDivElement>) => {
-          e.preventDefault();
-          addFiles(e.dataTransfer.files);
-        }}
+        {...images.dropProps}
       >
         <Box
           sx={{
             bgcolor: 'background.paper',
             border: 1,
-            borderColor: focused ? 'primary.main' : 'divider',
+            borderStyle: images.dragging ? 'dashed' : 'solid',
+            borderColor: focused || images.dragging ? 'primary.main' : 'divider',
             borderRadius: 2,
             transition: 'border-color 0.15s',
           }}
         >
           <textarea
+            ref={textarea}
             aria-label={t('comments.newComment')}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            onPaste={onPaste}
+            onPaste={images.onPaste}
+            {...images.caretProps}
             onFocus={() => setFocused(true)}
-            placeholder={t('comments.placeholder')}
+            placeholder={images.dragging ? t('attachments.dropHere') : t('comments.placeholder')}
             style={{
               width: '100%',
               minHeight: focused ? 70 : 38,
@@ -129,42 +92,9 @@ export function CommentComposer({ onSubmit }: CommentComposerProps) {
               padding: '10px 14px',
             }}
           />
-          {images.length > 0 && (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, padding: '0 14px 10px' }}>
-              {images.map((img, i) => (
-                <Box
-                  key={i}
-                  sx={{
-                    position: 'relative',
-                    width: 100,
-                    height: 70,
-                    borderRadius: '6px',
-                    backgroundImage: `url(${img.dataUrl})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    border: 1,
-                    borderColor: 'divider',
-                  }}
-                >
-                  <IconButton
-                    size="small"
-                    aria-label={t('comments.removeImage', { name: img.name })}
-                    onClick={() => setImages((arr) => arr.filter((_, j) => j !== i))}
-                    sx={{
-                      position: 'absolute',
-                      top: 3,
-                      right: 3,
-                      width: 18,
-                      height: 18,
-                      background: 'rgba(0,0,0,0.7)',
-                      color: '#fff',
-                      '&:hover': { background: 'rgba(0,0,0,0.85)' },
-                    }}
-                  >
-                    <Icon name="close" size={12} />
-                  </IconButton>
-                </Box>
-              ))}
+          {images.pending.length > 0 && (
+            <Box sx={{ padding: '0 14px 10px' }}>
+              <AttachmentGrid size="small" {...images.grid} />
             </Box>
           )}
           {(focused || canSubmit) && (
@@ -179,7 +109,7 @@ export function CommentComposer({ onSubmit }: CommentComposerProps) {
               }}
             >
               <Tooltip title={t('comments.attachImage')}>
-                <IconButton size="small" onClick={pickFiles}>
+                <IconButton size="small" onClick={images.pick}>
                   <Icon name="image" size={18} />
                 </IconButton>
               </Tooltip>

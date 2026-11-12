@@ -1,3 +1,4 @@
+import * as store from '../attachments/store';
 import { repos, withReader, withTransaction } from '../db';
 import {
   SLUG_RE,
@@ -65,5 +66,6 @@ export const deleteProject = (id: string): Promise<{ deletedTickets: number }> =
     await repos.tickets.removeByIds(em, ticketIds);
     await repos.counters.remove(em, id);
     await repos.projects.remove(em, id);
+    await store.removeTickets(ticketIds);
     return { deletedTickets: ticketIds.length };
   });

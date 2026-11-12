@@ -1,6 +1,9 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import * as path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { useTestDb } from '../test/db';
 
@@ -88,6 +91,9 @@ describe('MCP server', () => {
       'create_ticket',
       'update_ticket',
       'add_comment',
+      'attach_images',
+      'get_attachment',
+      'delete_attachment',
       'delete_ticket',
     ]);
     const resources = (await client.listResources()).resources.map((r) => r.uri);
@@ -230,6 +236,119 @@ describe('MCP server', () => {
     const { client } = await connect({ log });
     await client.callTool({ name: 'get_ticket', arguments: { id: 'one-1' } });
     expect(log).toHaveBeenCalledWith('tools/call get_ticket one-1');
+  });
+  describe('images', () => {
+    // Smallest valid PNG: a 1x1 pixel.
+    const PNG = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+      'base64',
+    );
+    const pngFile = (name: string) => {
+      const file = path.join(mkdtempSync(path.join(tmpdir(), 'locket-mcp-')), name);
+      writeFileSync(file, PNG);
+      return file;
+    };
+
+    it('explains how images work in the server instructions', async () => {
+      const { client } = await connect();
+      expect(client.getInstructions()).toMatch(/!\[\]\(login-screen\.png\)/);
+      expect(client.getInstructions()).toMatch(/get_attachment/);
+    });
+
+    it('creates a ticket with a file image and fixes up a renamed reference', async () => {
+      const { client } = await connect();
+      const file = pngFile('Login Screen.png');
+      const r = await client.callTool({
+        name: 'create_ticket',
+        arguments: {
+          projectId: 'p1',
+          title: 'With image',
+          description: 'See ![](Login Screen.png)',
+          images: [{ path: file }],
+        },
+      });
+      const ticket = parse(r);
+      expect(ticket.attachments).toEqual([
+        { name: 'login-screen.png', mime: 'image/png', size: PNG.length },
+      ]);
+      expect(ticket.description).toBe('See ![](login-screen.png)');
+    });
+
+    it('adds a comment with base64 images, numbering a taken name', async () => {
+      const { client } = await connect();
+      await client.callTool({
+        name: 'attach_images',
+        arguments: { ticketId: 'one-1', images: [{ path: pngFile('shot.png') }] },
+      });
+      const r = await client.callTool({
+        name: 'add_comment',
+        arguments: {
+          ticketId: 'one-1',
+          body: 'Again: ![](shot.png)',
+          images: [{ data: PNG.toString('base64'), mime: 'image/png', name: 'shot.png' }],
+        },
+      });
+      const comment = parse(r);
+      expect(comment.attachments.map((a: { name: string }) => a.name)).toEqual(['shot-2.png']);
+      expect(comment.body).toBe('Again: ![](shot-2.png)');
+    });
+
+    it('returns an image to look at, and deletes it', async () => {
+      const { client } = await connect();
+      const added = parse(
+        await client.callTool({
+          name: 'attach_images',
+          arguments: { ticketId: 'one-1', images: [{ path: pngFile('a.png') }] },
+        }),
+      );
+      expect(added).toEqual([{ name: 'a.png', markdown: '![](a.png)' }]);
+      const r = (await client.callTool({
+        name: 'get_attachment',
+        arguments: { ticketId: 'one-1', name: 'a.png' },
+      })) as CallToolResult;
+      expect(r.content[0]).toEqual({
+        type: 'image',
+        data: PNG.toString('base64'),
+        mimeType: 'image/png',
+      });
+
+      await client.callTool({
+        name: 'delete_attachment',
+        arguments: { ticketId: 'one-1', name: 'a.png' },
+      });
+      const gone = await client.callTool({
+        name: 'get_attachment',
+        arguments: { ticketId: 'one-1', name: 'a.png' },
+      });
+      expect(gone.isError).toBe(true);
+    });
+
+    it.each([
+      ['a relative path', { path: 'shot.png' }, /absolute/],
+      ['a missing file', { path: '/nope/shot.png' }, /No image file/],
+      ['a file that is not really an image', 'fake', /is not a valid image\/png image/],
+      ['data without a type', { data: 'AAAA' }, /Unsupported image type/],
+      ['both path and data', { path: '/x.png', data: 'AAAA' }, /exactly one/],
+    ])('refuses %s', async (_label, image, message) => {
+      const { client } = await connect();
+      const input =
+        image === 'fake'
+          ? {
+              path: (() => {
+                const f = pngFile('fake.png');
+                writeFileSync(f, 'not a png');
+                return f;
+              })(),
+            }
+          : image;
+      const r = await client.callTool({
+        name: 'add_comment',
+        arguments: { ticketId: 'one-1', body: 'x', images: [input] },
+      });
+      expect(r.isError).toBe(true);
+      expect(text(r)).toMatch(message);
+      expect((await readSnapshot()).tickets[0].comments).toEqual([]);
+    });
   });
 });
 

@@ -12,6 +12,7 @@ import * as apply from './localData';
 import { useCurrentUser } from './useCurrentUser';
 import type { AppData, Project, Settings, Ticket } from '@/data/types';
 import type {
+  NewAttachment,
   NewProjectInput,
   PersistedData,
   ProjectPatch,
@@ -63,12 +64,24 @@ export interface AppStateApi {
   deleteProject: (id: string) => Promise<void>;
   addTicket: (
     projectId: string,
-    data: Partial<Omit<Ticket, 'id' | 'projectId'>> & { title: string },
+    data: Partial<Omit<Ticket, 'id' | 'projectId' | 'attachments'>> & {
+      title: string;
+      attachments?: NewAttachment[];
+    },
   ) => Promise<Ticket>;
   updateTicket: (id: string, patch: TicketPatch) => Promise<void>;
   deleteTicket: (id: string) => Promise<void>;
-  addComment: (ticketId: string, body: string, author?: string) => Promise<void>;
+  addComment: (
+    ticketId: string,
+    body: string,
+    author?: string,
+    attachments?: NewAttachment[],
+  ) => Promise<void>;
   deleteComment: (ticketId: string, commentId: number) => Promise<void>;
+  /** Attach images to a ticket itself. */
+  addTicketAttachments: (ticketId: string, attachments: NewAttachment[]) => Promise<void>;
+  deleteAttachment: (ticketId: string, name: string) => Promise<void>;
+  attachmentUrl: (ticketId: string, name: string) => Promise<string | null>;
   setSettings: (patch: Partial<Settings>) => void;
   resetData: () => Promise<void>;
 }
@@ -151,6 +164,7 @@ export function useAppStateStore(): AppStateApi {
           labels: data.labels,
           due: data.due,
           author: data.author || currentUser,
+          attachments: data.attachments,
         });
         patchData((d) => ({
           ...apply.withTicket(d, ticket),
@@ -166,14 +180,23 @@ export function useAppStateStore(): AppStateApi {
         await be.deleteTicket(id);
         patchData((d) => apply.withoutTicket(d, id));
       },
-      async addComment(ticketId, body, author = currentUser) {
-        const comment = await be.addComment(ticketId, body, author);
+      async addComment(ticketId, body, author = currentUser, attachments) {
+        const comment = await be.addComment(ticketId, body, author, attachments);
         patchData((d) => apply.withComment(d, ticketId, comment));
       },
       async deleteComment(ticketId, commentId) {
         await be.deleteComment(ticketId, commentId);
         patchData((d) => apply.withoutComment(d, ticketId, commentId));
       },
+      async addTicketAttachments(ticketId, attachments) {
+        const added = await be.addAttachments(ticketId, attachments);
+        patchData((d) => apply.withTicketAttachments(d, ticketId, added));
+      },
+      async deleteAttachment(ticketId, name) {
+        await be.deleteAttachment(ticketId, name);
+        patchData((d) => apply.withoutAttachment(d, ticketId, name));
+      },
+      attachmentUrl: (ticketId, name) => be.attachmentUrl(ticketId, name),
       setSettings(patch) {
         setState((s) => ({ ...s, settings: { ...s.settings, ...patch } }));
         const persisted = pickPersisted(patch);

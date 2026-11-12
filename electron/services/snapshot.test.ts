@@ -34,9 +34,11 @@ describe('snapshot service', () => {
     expect(snap.projects).toEqual(SEED.projects);
     expect(snap.counters).toEqual(SEED.counters);
     expect(snap.tickets.map((t) => t.id)).toEqual(['one-1', 'two-1']);
+    const [later, earlier] = SEED.tickets[0].comments;
     expect(snap.tickets[0]).toEqual({
       ...SEED.tickets[0],
-      comments: [SEED.tickets[0].comments[1], SEED.tickets[0].comments[0]],
+      comments: [earlier, later].map((c) => ({ ...c, attachments: [] })),
+      attachments: [],
     });
   });
 

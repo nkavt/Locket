@@ -31,6 +31,11 @@ describe('data IPC', () => {
   it('registers every channel the preload exposes', () => {
     expect([...handlers.keys()].sort()).toEqual(
       [
+        'attachments:add',
+        'attachments:cleanUp',
+        'attachments:delete',
+        'attachments:get',
+        'attachments:usage',
         'comments:add',
         'comments:delete',
         'data:get',

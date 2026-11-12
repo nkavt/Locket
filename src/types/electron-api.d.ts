@@ -1,4 +1,25 @@
-import type { Comment, Project, Ticket } from '../data/types';
+import type { Attachment, Comment, Project, Ticket } from '../data/types';
+
+/** An image about to be saved. The renderer picks the name so markdown can reference it early. */
+export interface NewAttachment {
+  /** Unique within the ticket (see features/attachments/names.ts). */
+  name: string;
+  mime: string;
+  data: Uint8Array;
+}
+
+export interface AttachmentData {
+  mime: string;
+  data: Uint8Array;
+}
+
+export interface AttachmentUsage {
+  files: number;
+  bytes: number;
+  /** Images whose ticket or comment no longer exists. */
+  unusedFiles: number;
+  unusedBytes: number;
+}
 
 export interface PersistedSettings {
   mcpPort: number;
@@ -33,6 +54,7 @@ export interface NewTicketInput {
   labels?: string[];
   due?: string | null;
   author: string;
+  attachments?: NewAttachment[];
 }
 
 export type TicketPatch = Partial<
@@ -93,8 +115,24 @@ declare global {
         delete: (id: string) => Promise<void>;
       };
       comments: {
-        add: (ticketId: string, body: string, author: string) => Promise<Comment>;
+        add: (
+          ticketId: string,
+          body: string,
+          author: string,
+          attachments?: NewAttachment[],
+        ) => Promise<Comment>;
         delete: (ticketId: string, commentId: number) => Promise<void>;
+      };
+      attachments: {
+        /** Image bytes, or null when the attachment was deleted. */
+        get: (ticketId: string, name: string) => Promise<AttachmentData | null>;
+        /** Attach images to the ticket itself. */
+        add: (ticketId: string, attachments: NewAttachment[]) => Promise<Attachment[]>;
+        delete: (ticketId: string, name: string) => Promise<void>;
+        /** Disk used by images, including leftovers from deleted tickets or comments. */
+        usage: () => Promise<AttachmentUsage>;
+        /** Delete leftover images whose ticket or comment no longer exists. */
+        cleanUp: () => Promise<{ removedFiles: number; freedBytes: number }>;
       };
       mcp: {
         status: () => Promise<McpStatus>;

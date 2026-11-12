@@ -1,3 +1,4 @@
+import * as store from '../attachments/store';
 import { repos, withReader, withTransaction } from '../db';
 import type { PersistedData } from '../db/types';
 
@@ -57,4 +58,6 @@ export const replaceSnapshot = (data: PersistedData): Promise<void> =>
     );
     await repos.counters.setMany(em, data.counters);
     await repos.meta.markInitialized(em);
+    // Snapshots carry attachment metadata only, never the bytes, so a replace starts images over.
+    await store.clear();
   });
