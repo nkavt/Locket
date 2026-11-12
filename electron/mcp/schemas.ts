@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { HEX_COLOR_RE, ICON_EXAMPLES } from '../projects/icons';
+import {
+  HEX_COLOR_RE,
+  ICON_EXAMPLES,
+  isMaterialSymbol,
+  unknownIconMessage,
+} from '../projects/icons';
 
 export const STATUS = z.enum(['todo', 'in_progress', 'done']);
 export const PRIORITY = z.enum(['low', 'medium', 'high']);
@@ -9,10 +14,11 @@ export const DATE = z
   .describe('Due date as YYYY-MM-DD');
 export const SLUG = z.string().regex(/^[a-z0-9-]{2,12}$/);
 
-// A z.enum of ~4,000 names would bloat every tool listing, so the service checks the name
-// and the description carries a few examples.
+// Checked against every name the font knows. A z.enum of ~4,000 names would bloat every tool
+// listing; a refine isn't written into the JSON schema, so agents only see the description.
 export const ICON_SCHEMA = z
   .string()
+  .refine(isMaterialSymbol, { error: (issue) => unknownIconMessage(String(issue.input)) })
   .describe(
     `Any Material Symbols icon name (https://fonts.google.com/icons), e.g. ${ICON_EXAMPLES.join(', ')}`,
   );
