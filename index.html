@@ -5,6 +5,28 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Locket</title>
+    <!--
+      Paint the theme's page background before React mounts. Colours must match
+      PAGE_BACKGROUND in src/theme.ts (checked by src/theme.test.ts).
+      theme-boot.js sets data-theme when the user picked a mode; otherwise the system decides.
+    -->
+    <style>
+      :root {
+        color-scheme: light;
+        background-color: #fafafa;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) {
+          color-scheme: dark;
+          background-color: #0e1014;
+        }
+      }
+      :root[data-theme='dark'] {
+        color-scheme: dark;
+        background-color: #0e1014;
+      }
+    </style>
+    <script src="./theme-boot.js"></script>
   </head>
   <body>
     <div id="root"></div>
