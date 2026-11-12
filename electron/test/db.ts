@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import * as path from 'node:path';
 import { afterAll, beforeAll, beforeEach } from 'vitest';
 import type { PersistedData, PersistedTicket } from '../db/types';
 
@@ -24,8 +27,13 @@ export const ticketFixture = (overrides: Partial<PersistedTicket> = {}): Persist
  * test. Needs Electron's node (see the `test` script): better-sqlite3 is built
  * against Electron's ABI. Test files must also `vi.mock('electron', ...)`.
  */
-export function useTestDb(seed: () => PersistedData = emptySeed): void {
+export function useTestDb(seed: () => PersistedData = emptySeed): string {
+  // Images are files; each test file gets its own folder, emptied by the reseed below.
+  const attachmentsDir = mkdtempSync(path.join(tmpdir(), 'locket-attachments-'));
+
   beforeAll(async () => {
+    const { setAttachmentsRoot } = await import('../attachments/store');
+    setAttachmentsRoot(attachmentsDir);
     const { initDb } = await import('../db');
     await initDb({ database: ':memory:' });
   });
@@ -38,5 +46,8 @@ export function useTestDb(seed: () => PersistedData = emptySeed): void {
   afterAll(async () => {
     const { closeDb } = await import('../db');
     await closeDb();
+    rmSync(attachmentsDir, { recursive: true, force: true });
   });
+
+  return attachmentsDir;
 }

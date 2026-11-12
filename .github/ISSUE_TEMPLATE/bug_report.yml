@@ -1,0 +1,58 @@
+name: Bug report
+description: Something in Locket doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. For security problems, use [private reporting](https://github.com/nkavt/Locket/security) instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you see, and what did you expect to see instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a project
+        2. Click ...
+        3. See ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Locket version
+      description: Shown under the app name in the sidebar.
+      placeholder: vX.Y.Z
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS (Apple silicon)
+        - macOS (Intel)
+        - Windows
+        - Linux
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where does it happen?
+      options:
+        - App UI
+        - MCP server / agent integration
+        - Install or update
+        - Other
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots or logs
+      description: Screenshots, MCP activity log lines, or anything else that helps.

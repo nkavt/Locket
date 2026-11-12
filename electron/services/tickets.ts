@@ -1,5 +1,7 @@
+import * as store from '../attachments/store';
 import { repos, withReader, withTransaction } from '../db';
 import type { NewTicketInput, PersistedTicket, TicketFilter, TicketPatch } from '../db/types';
+import { validateAttachments } from './attachments';
 import { NotFoundError, today } from './errors';
 
 /** Pure predicate for the parts of the filter that are not plain column matches. */
@@ -34,6 +36,7 @@ export const createTicket = (input: NewTicketInput): Promise<PersistedTicket> =>
   withTransaction(async (em) => {
     const project = await repos.projects.findById(em, input.projectId);
     if (!project) throw new NotFoundError('Project', input.projectId);
+    const files = await validateAttachments(null, input.attachments);
     const next = await repos.counters.next(em, project.id);
     const now = today();
     const ticket: PersistedTicket = {
@@ -51,6 +54,8 @@ export const createTicket = (input: NewTicketInput): Promise<PersistedTicket> =>
       comments: [],
     };
     await repos.tickets.insert(em, ticket);
+    // Files last: if writing fails the transaction rolls back and the ticket is not created.
+    ticket.attachments = await store.write(ticket.id, null, files);
     return ticket;
   });
 
@@ -68,4 +73,5 @@ export const deleteTicket = (id: string): Promise<void> =>
     if (!(await repos.tickets.findById(em, id))) throw new NotFoundError('Ticket', id);
     await repos.comments.removeByTicketIds(em, [id]);
     await repos.tickets.remove(em, id);
+    await store.removeTickets([id]);
   });

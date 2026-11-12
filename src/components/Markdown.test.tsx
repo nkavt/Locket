@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { AttachmentScope } from '@/features/attachments/AttachmentScope';
 import { Markdown } from './Markdown';
 
 const PIXEL =
@@ -33,5 +34,21 @@ describe('Markdown images', () => {
   it('does not render non-image data: sources', () => {
     render(<Markdown source="![page](data:text/html;base64,PHNjcmlwdD4=)" />);
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('treats a bare file name on a ticket as one of its images, YouTrack style', () => {
+    render(
+      <AttachmentScope value="t-1">
+        <Markdown source="![](login-screen.png)" />
+      </AttachmentScope>,
+    );
+    // No store in this test, so the image resolves as missing rather than becoming a link.
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByText(/login-screen\.png/)).toBeInTheDocument();
+  });
+
+  it('leaves a bare file name as a link outside a ticket', () => {
+    render(<Markdown source="![](login-screen.png)" />);
+    expect(screen.getByRole('link', { name: 'login-screen.png' })).toBeInTheDocument();
   });
 });

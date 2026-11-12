@@ -72,7 +72,7 @@ src/
 | Windows  | `%APPDATA%\locket\locket.db`                     |
 | Linux    | `~/.config/locket/locket.db`                     |
 
-`settings.json` sits next to it. **Reset workspace** in Settings wipes the database and recreates the Welcome project.
+`settings.json` sits next to it. Unpackaged runs (`npm run dev`, `npm start`) use `temp/.config/` in the project instead, so development never touches your real data. Point it elsewhere with `LOCKET_USER_DATA_DIR=/some/dir npm run dev`. Packaged builds ignore this variable, so a globally set one can't move the installed app's data. **Reset workspace** in Settings wipes the database and recreates the Welcome project.
 
 ## Releasing
 
@@ -87,6 +87,12 @@ git push origin v0.1.2
 The workflow runs the tests, packages the macOS app for Apple silicon and Intel, and publishes a GitHub Release named after the tag with the `.dmg` and `.zip` files attached. The tag must match the version in `package.json` or the build fails.
 
 Builds are not code-signed yet. On first launch, right-click the app and choose **Open**, or run `xattr -cr /Applications/Locket.app`.
+
+## Contributing
+
+Contributions are welcome. Fork the repo, make your change on a branch and open a pull request into `main`. See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and the checks CI runs. Questions and ideas go in [Discussions](https://github.com/nkavt/Locket/discussions), and security problems should be [reported privately](SECURITY.md).
+
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 

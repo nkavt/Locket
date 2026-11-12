@@ -1,5 +1,12 @@
-import type { Ticket } from '@/data/types';
-import type { McpLogLine, McpStatus, PersistedData, PersistedSettings } from '@/types/electron-api';
+import type { Attachment, Ticket } from '@/data/types';
+import type {
+  AttachmentData,
+  McpLogLine,
+  McpStatus,
+  NewAttachment,
+  PersistedData,
+  PersistedSettings,
+} from '@/types/electron-api';
 
 type LocketBridge = Window['locket'];
 
@@ -7,6 +14,8 @@ type LocketBridge = Window['locket'];
 export interface MockLocket {
   bridge: LocketBridge;
   data: PersistedData | null;
+  /** Saved image bytes by "<ticketId>/<name>". */
+  files: Map<string, AttachmentData>;
   settings: PersistedSettings;
   user: string;
   mcp: McpStatus;
@@ -32,7 +41,14 @@ export function installMockLocket(
     mock.logsClearedListeners.forEach((l) => l());
   };
   const data = (): PersistedData => (mock.data ??= { projects: [], tickets: [], counters: {} });
+  /** Keep the bytes for `attachments.get` and return the metadata the store sees. */
+  const store = (ticketId: string, list: NewAttachment[] = []): Attachment[] =>
+    list.map((a) => {
+      mock.files.set(`${ticketId}/${a.name}`, { mime: a.mime, data: a.data });
+      return { name: a.name, mime: a.mime, size: a.data.byteLength };
+    });
   const mock: MockLocket = {
+    files: new Map(),
     data: init.data ?? null,
     settings: { ...DEFAULT_SETTINGS, ...init.settings },
     user: init.user ?? 'Test User',
@@ -134,6 +150,7 @@ export function installMockLocket(
             created: today,
             updated: today,
             comments: [],
+            attachments: store(`${project.slug}-${next}`, input.attachments),
           } satisfies Ticket;
           d.tickets.push(ticket);
           d.counters[project.id] = next;
@@ -151,10 +168,16 @@ export function installMockLocket(
         },
       },
       comments: {
-        add: async (ticketId, body, author) => {
+        add: async (ticketId, body, author, attachments) => {
           const ticket = data().tickets.find((t) => t.id === ticketId);
           if (!ticket) throw new Error(`Ticket "${ticketId}" not found`);
-          const comment = { id: Date.now(), author, ts: new Date().toISOString(), body };
+          const comment = {
+            id: Date.now(),
+            author,
+            ts: new Date().toISOString(),
+            body,
+            attachments: store(ticketId, attachments),
+          };
           ticket.comments.push(comment);
           return comment;
         },
@@ -162,6 +185,32 @@ export function installMockLocket(
           const ticket = data().tickets.find((t) => t.id === ticketId);
           if (!ticket) throw new Error(`Ticket "${ticketId}" not found`);
           ticket.comments = ticket.comments.filter((c) => c.id !== commentId);
+        },
+      },
+      attachments: {
+        get: async (ticketId, name) => mock.files.get(`${ticketId}/${name}`) ?? null,
+        add: async (ticketId, attachments) => {
+          const ticket = data().tickets.find((t) => t.id === ticketId);
+          if (!ticket) throw new Error(`Ticket "${ticketId}" not found`);
+          const added = store(ticketId, attachments);
+          ticket.attachments = [...(ticket.attachments ?? []), ...added];
+          return added;
+        },
+        usage: async () => ({
+          files: mock.files.size,
+          bytes: [...mock.files.values()].reduce((n, f) => n + f.data.byteLength, 0),
+          unusedFiles: 0,
+          unusedBytes: 0,
+        }),
+        cleanUp: async () => ({ removedFiles: 0, freedBytes: 0 }),
+        delete: async (ticketId, name) => {
+          mock.files.delete(`${ticketId}/${name}`);
+          for (const t of data().tickets.filter((x) => x.id === ticketId)) {
+            t.attachments = t.attachments?.filter((a) => a.name !== name);
+            for (const c of t.comments) {
+              c.attachments = c.attachments?.filter((a) => a.name !== name);
+            }
+          }
         },
       },
       mcp: {

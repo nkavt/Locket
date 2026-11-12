@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import type {
+  NewAttachment,
   NewProjectInput,
   NewTicketInput,
   PersistedData,
@@ -50,10 +51,26 @@ export function registerDataIpc(notify: (data: PersistedData) => void): void {
     changed(await services.deleteTicket(id)),
   );
 
-  ipcMain.handle('comments:add', async (_e, ticketId: string, body: string, author: string) =>
-    changed(await services.addComment(ticketId, body, author)),
+  ipcMain.handle(
+    'comments:add',
+    async (_e, ticketId: string, body: string, author: string, attachments?: NewAttachment[]) =>
+      changed(await services.addComment(ticketId, body, author, attachments)),
   );
   ipcMain.handle('comments:delete', async (_e, ticketId: string, commentId: number) =>
     changed(await services.deleteComment(ticketId, commentId)),
   );
+
+  // Image bytes are fetched one at a time on demand; snapshots only carry metadata.
+  ipcMain.handle('attachments:get', (_e, ticketId: string, name: string) =>
+    services.getAttachmentData(ticketId, name),
+  );
+  ipcMain.handle('attachments:add', async (_e, ticketId: string, attachments: NewAttachment[]) =>
+    changed(await services.addTicketAttachments(ticketId, attachments)),
+  );
+  ipcMain.handle('attachments:delete', async (_e, ticketId: string, name: string) =>
+    changed(await services.deleteAttachment(ticketId, name)),
+  );
+  // Settings: disk usage and a manual sweep of images whose ticket or comment is gone.
+  ipcMain.handle('attachments:usage', () => services.attachmentUsage());
+  ipcMain.handle('attachments:cleanUp', () => services.cleanUpAttachments());
 }

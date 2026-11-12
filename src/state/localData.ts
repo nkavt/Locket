@@ -1,5 +1,6 @@
-import type { Comment, Project, Ticket } from '@/data/types';
+import type { Attachment, Comment, Project, Ticket } from '@/data/types';
 import type {
+  NewAttachment,
   NewProjectInput,
   NewTicketInput,
   PersistedData,
@@ -8,6 +9,10 @@ import type {
 } from '@/types/electron-api';
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+/** Metadata for images being saved; the bytes are stored by the caller. */
+export const attachmentMeta = (list: NewAttachment[] = []): Attachment[] =>
+  list.map((a) => ({ name: a.name, mime: a.mime, size: a.data.byteLength }));
 
 // --- reducers: apply an already-decided change to a dataset -----------------
 
@@ -65,6 +70,42 @@ export const withComment = (
   }),
 });
 
+/** Append images to a ticket itself, skipping ones the change broadcast already delivered. */
+export const withTicketAttachments = (
+  d: PersistedData,
+  ticketId: string,
+  added: Attachment[],
+): PersistedData => ({
+  ...d,
+  tickets: d.tickets.map((t) => {
+    if (t.id !== ticketId) return t;
+    const current = t.attachments ?? [];
+    const fresh = added.filter((a) => !current.some((c) => c.name === a.name));
+    return { ...t, attachments: [...current, ...fresh], updated: today() };
+  }),
+});
+
+/** Drop one image of a ticket, whether the ticket or one of its comments holds it. */
+export const withoutAttachment = (
+  d: PersistedData,
+  ticketId: string,
+  name: string,
+): PersistedData => {
+  const drop = (list: Attachment[] | undefined) => list?.filter((a) => a.name !== name);
+  return {
+    ...d,
+    tickets: d.tickets.map((t) => {
+      if (t.id !== ticketId) return t;
+      return {
+        ...t,
+        attachments: drop(t.attachments),
+        comments: t.comments.map((c) => ({ ...c, attachments: drop(c.attachments) })),
+        updated: today(),
+      };
+    }),
+  };
+};
+
 export const withoutComment = (
   d: PersistedData,
   ticketId: string,
@@ -118,6 +159,7 @@ export function createTicket(d: PersistedData, input: NewTicketInput) {
     created: now,
     updated: now,
     comments: [],
+    attachments: attachmentMeta(input.attachments),
   };
   return {
     data: { ...withTicket(d, ticket), counters: { ...d.counters, [project.id]: next } },
@@ -132,10 +174,22 @@ export function updateTicket(d: PersistedData, id: string, patch: TicketPatch) {
   return { data: withTicket(d, ticket), ticket };
 }
 
-export function addComment(d: PersistedData, ticketId: string, body: string, author: string) {
+export function addComment(
+  d: PersistedData,
+  ticketId: string,
+  body: string,
+  author: string,
+  attachments: NewAttachment[] = [],
+) {
   const ticket = d.tickets.find((t) => t.id === ticketId);
   if (!ticket) throw new Error(`Ticket "${ticketId}" not found`);
   const id = Math.max(Date.now(), ...ticket.comments.map((c) => c.id + 1));
-  const comment: Comment = { id, author, ts: new Date().toISOString(), body };
+  const comment: Comment = {
+    id,
+    author,
+    ts: new Date().toISOString(),
+    body,
+    attachments: attachmentMeta(attachments),
+  };
   return { data: withComment(d, ticketId, comment), comment };
 }

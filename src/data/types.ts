@@ -10,11 +10,20 @@ export interface Project {
   description: string;
 }
 
+/** Image metadata. The bytes are fetched on demand (see `useAttachmentUrl`). */
+export interface Attachment {
+  /** Unique within the ticket; markdown shows it with `![](<name>)`. */
+  name: string;
+  mime: string;
+  size: number;
+}
+
 export interface Comment {
   id: number;
   author: string;
   ts: string;
   body: string;
+  attachments?: Attachment[];
 }
 
 export interface Ticket {
@@ -30,6 +39,8 @@ export interface Ticket {
   created: string;
   updated: string;
   comments: Comment[];
+  /** Images on the ticket itself; comment images live on each comment. */
+  attachments?: Attachment[];
 }
 
 export interface Settings {

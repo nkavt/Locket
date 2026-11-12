@@ -1,9 +1,10 @@
 import type { EntityManager, FindOptionsWhere } from 'typeorm';
 import { TicketEntity } from '../entities/ticket.entity';
 import type { PersistedComment, PersistedTicket, TicketFilter, TicketPatch } from '../types';
+import * as attachments from '../../attachments/store';
 import * as comments from './comments';
 
-type Row = Omit<PersistedTicket, 'comments'>;
+type Row = Omit<PersistedTicket, 'comments' | 'attachments'>;
 
 const toRow = (t: PersistedTicket): Row => ({
   id: t.id,
@@ -19,15 +20,24 @@ const toRow = (t: PersistedTicket): Row => ({
   updated: t.updated,
 });
 
+/** Attach comments and attachment metadata (never the image bytes) to ticket rows. */
 const withComments = async (
   em: EntityManager,
   rows: TicketEntity[],
 ): Promise<PersistedTicket[]> => {
-  const grouped = await comments.findByTicketIds(
-    em,
-    rows.map((r) => r.id),
-  );
-  return rows.map((r) => ({ ...r, comments: grouped.get(r.id) ?? ([] as PersistedComment[]) }));
+  const ids = rows.map((r) => r.id);
+  const [grouped, files] = await Promise.all([
+    comments.findByTicketIds(em, ids),
+    attachments.listForTickets(ids),
+  ]);
+  return rows.map((r) => {
+    const own = files.get(r.id);
+    const list: PersistedComment[] = (grouped.get(r.id) ?? []).map((c) => ({
+      ...c,
+      attachments: own?.comments.get(c.id) ?? [],
+    }));
+    return { ...r, comments: list, attachments: own?.ticket ?? [] };
+  });
 };
 
 /** Tickets in creation order, narrowed by the indexed filter fields; label/query are applied by the service. */

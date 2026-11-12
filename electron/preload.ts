@@ -1,7 +1,10 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import type {
+  AttachmentData,
+  NewAttachment,
   NewProjectInput,
   NewTicketInput,
+  PersistedAttachment,
   PersistedComment,
   PersistedData,
   PersistedProject,
@@ -11,6 +14,7 @@ import type {
   TicketPatch,
 } from './db/types';
 import type { ProjectSummary } from './services';
+import type { StorageUsage } from './attachments/store';
 import type { McpLogLine, McpStatus } from './mcp/http';
 
 interface PersistedSettings {
@@ -62,10 +66,26 @@ contextBridge.exposeInMainWorld('locket', {
     delete: (id: string): Promise<void> => ipcRenderer.invoke('tickets:delete', id),
   },
   comments: {
-    add: (ticketId: string, body: string, author: string): Promise<PersistedComment> =>
-      ipcRenderer.invoke('comments:add', ticketId, body, author),
+    add: (
+      ticketId: string,
+      body: string,
+      author: string,
+      attachments?: NewAttachment[],
+    ): Promise<PersistedComment> =>
+      ipcRenderer.invoke('comments:add', ticketId, body, author, attachments),
     delete: (ticketId: string, commentId: number): Promise<void> =>
       ipcRenderer.invoke('comments:delete', ticketId, commentId),
+  },
+  attachments: {
+    get: (ticketId: string, name: string): Promise<AttachmentData | null> =>
+      ipcRenderer.invoke('attachments:get', ticketId, name),
+    add: (ticketId: string, attachments: NewAttachment[]): Promise<PersistedAttachment[]> =>
+      ipcRenderer.invoke('attachments:add', ticketId, attachments),
+    delete: (ticketId: string, name: string): Promise<void> =>
+      ipcRenderer.invoke('attachments:delete', ticketId, name),
+    usage: (): Promise<StorageUsage> => ipcRenderer.invoke('attachments:usage'),
+    cleanUp: (): Promise<{ removedFiles: number; freedBytes: number }> =>
+      ipcRenderer.invoke('attachments:cleanUp'),
   },
   mcp: {
     status: (): Promise<McpStatus> => ipcRenderer.invoke('mcp:status'),
