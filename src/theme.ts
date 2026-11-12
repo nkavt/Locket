@@ -10,8 +10,14 @@ const monoFamily = '"JetBrains Mono", ui-monospace, monospace';
  * Dark surfaces, lowest to highest: the page, panels and cards (sidebar, headers,
  * settings cards), then floating layers (dialogs, menus, popovers).
  */
+/** Page background per mode. index.html repeats these so the first frame matches the theme. */
+export const PAGE_BACKGROUND = { light: '#fafafa', dark: '#0e1014' } as const satisfies Record<
+  ThemeMode,
+  string
+>;
+
 const darkSurface = {
-  page: '#0e1014',
+  page: PAGE_BACKGROUND.dark,
   paper: '#171a21',
   elevated: '#1f232c',
   border: 'rgba(255,255,255,0.13)',
@@ -32,7 +38,7 @@ export function getTheme(mode: ThemeMode): Theme {
       success: { main: isDark ? '#66bb6a' : '#2e7d32' },
       info: { main: isDark ? '#29b6f6' : '#0288d1' },
       background: {
-        default: isDark ? darkSurface.page : '#fafafa',
+        default: PAGE_BACKGROUND[mode],
         paper: isDark ? darkSurface.paper : '#ffffff',
       },
       text: {

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, type Tray } from 'electron';
+import { app, BrowserWindow, ipcMain, nativeTheme, shell, type Tray } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
@@ -105,12 +105,18 @@ const createWindow = (): BrowserWindow => {
     width: 1200,
     height: 800,
     icon: iconPath,
+    // Hidden until the page has painted its themed background (see index.html), so no white
+    // frame shows. The colour covers any gap before that; it follows the system because the
+    // in-app theme choice lives in the renderer's localStorage. Keep in sync with src/theme.ts.
+    show: false,
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0e1014' : '#fafafa',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
+  win.once('ready-to-show', () => win.show());
 
   // The app never leaves its own page: links open in the OS, and only for safe protocols.
   const openExternal = (url: string): void => {
@@ -137,10 +143,15 @@ const createWindow = (): BrowserWindow => {
 
 /** Show and focus the main window, creating it if it was closed. */
 const openLocket = (): void => {
-  const win = BrowserWindow.getAllWindows()[0] ?? createWindow();
-  if (win.isMinimized()) win.restore();
-  win.show();
-  win.focus();
+  const existing = BrowserWindow.getAllWindows()[0];
+  if (existing) {
+    if (existing.isMinimized()) existing.restore();
+    existing.show();
+    existing.focus();
+  } else {
+    // A new window shows itself on ready-to-show, which also focuses it.
+    createWindow();
+  }
   app.focus({ steal: true });
 };
 
