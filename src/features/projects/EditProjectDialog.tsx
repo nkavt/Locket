@@ -103,7 +103,7 @@ export function EditProjectDialog({ open, project, onClose }: EditProjectDialogP
               <IconPicker
                 value={field.value}
                 onChange={field.onChange}
-                icons={PROJECT_ICONS}
+                suggestions={PROJECT_ICONS}
                 color={color}
               />
             )}

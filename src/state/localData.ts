@@ -1,4 +1,11 @@
 import type { Attachment, Comment, Project, Ticket } from '@/data/types';
+import {
+  DEFAULT_PROJECT_COLOR,
+  DEFAULT_PROJECT_ICON,
+  HEX_COLOR_RE,
+  isMaterialSymbol,
+  unknownIconMessage,
+} from '@/data/projectIcons';
 import type {
   NewAttachment,
   NewProjectInput,
@@ -9,6 +16,16 @@ import type {
 } from '@/types/electron-api';
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+/** The same icon and colour rules as electron/services/projects.ts. */
+function checkLook(look: { icon?: string; color?: string }) {
+  if (look.icon !== undefined && !isMaterialSymbol(look.icon)) {
+    throw new Error(unknownIconMessage(look.icon));
+  }
+  if (look.color !== undefined && !HEX_COLOR_RE.test(look.color)) {
+    throw new Error(`Invalid colour "${look.color}": use a hex colour like #1976d2`);
+  }
+}
 
 /** Metadata for images being saved; the bytes are stored by the caller. */
 export const attachmentMeta = (list: NewAttachment[] = []): Attachment[] =>
@@ -123,12 +140,13 @@ export function createProject(d: PersistedData, input: NewProjectInput) {
   if (d.projects.some((p) => p.slug === input.slug)) {
     throw new Error(`Slug "${input.slug}" already in use`);
   }
+  checkLook(input);
   const project: Project = {
     id: `${input.slug}-${Math.random().toString(36).slice(2, 6)}`,
     name: input.name,
     slug: input.slug,
-    icon: input.icon ?? 'rocket_launch',
-    color: input.color ?? '#1976d2',
+    icon: input.icon ?? DEFAULT_PROJECT_ICON,
+    color: input.color ?? DEFAULT_PROJECT_COLOR,
     description: input.description ?? `# ${input.name}\n\n`,
   };
   return { data: withProject(d, project), project };
@@ -137,6 +155,7 @@ export function createProject(d: PersistedData, input: NewProjectInput) {
 export function updateProject(d: PersistedData, id: string, patch: ProjectPatch) {
   const current = d.projects.find((p) => p.id === id);
   if (!current) throw new Error(`Project "${id}" not found`);
+  checkLook(patch);
   const project = { ...current, ...patch };
   return { data: withProject(d, project), project };
 }
