@@ -28,19 +28,32 @@ export const findByTicketIds = async (
   return grouped;
 };
 
+// Attachments are files on disk, so only the comment's own columns are written.
+const toRow = (ticketId: string, c: PersistedComment): CommentEntity => ({
+  id: c.id,
+  ticketId,
+  author: c.author,
+  ts: c.ts,
+  body: c.body,
+});
+
 export const insert = async (
   em: EntityManager,
   ticketId: string,
   c: PersistedComment,
 ): Promise<void> => {
-  await em.insert(CommentEntity, { ...c, ticketId });
+  await em.insert(CommentEntity, toRow(ticketId, c));
 };
 
 export const insertMany = async (
   em: EntityManager,
   rows: Array<PersistedComment & { ticketId: string }>,
 ): Promise<void> => {
-  if (rows.length) await em.insert(CommentEntity, rows);
+  if (rows.length)
+    await em.insert(
+      CommentEntity,
+      rows.map((r) => toRow(r.ticketId, r)),
+    );
 };
 
 /** Returns true when a row was deleted. */

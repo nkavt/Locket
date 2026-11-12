@@ -9,6 +9,9 @@ import { LabelPicker } from './components/LabelPicker';
 import { DescriptionEditor } from './components/DescriptionEditor';
 import { CommentsThread } from '@/features/comments/CommentsThread';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { AttachmentScope } from '@/features/attachments/AttachmentScope';
+import { ticketNames } from '@/features/attachments/names';
+import { useDeleteAttachment } from '@/features/attachments/useDeleteAttachment';
 import { projectPath } from '@/router';
 import { useAppState } from '@/state/useAppState';
 import type { Project, Ticket } from '@/data/types';
@@ -19,7 +22,8 @@ interface TicketDetailProps {
 }
 
 export function TicketDetail({ ticket, project }: TicketDetailProps) {
-  const { updateTicket, deleteTicket } = useAppState();
+  const { updateTicket, deleteTicket, addTicketAttachments } = useAppState();
+  const removeImage = useDeleteAttachment(ticket.id);
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -44,16 +48,23 @@ export function TicketDetail({ ticket, project }: TicketDetailProps) {
       />
 
       <Box sx={{ flex: 1, overflowY: 'auto' }}>
-        <Box sx={{ maxWidth: 920, mx: 'auto', padding: '24px 32px 60px' }}>
-          <TitleEditor value={ticket.title} onSave={(title) => update({ title })} />
-          <TicketMetaRow ticket={ticket} onUpdate={update} />
-          <LabelPicker value={ticket.labels || []} onChange={(labels) => update({ labels })} />
-          <DescriptionEditor
-            value={ticket.description || ''}
-            onSave={(description) => update({ description })}
-          />
-          <CommentsThread ticket={ticket} />
-        </Box>
+        <AttachmentScope value={ticket.id}>
+          <Box sx={{ maxWidth: 920, mx: 'auto', padding: '24px 32px 60px' }}>
+            <TitleEditor value={ticket.title} onSave={(title) => update({ title })} />
+            <TicketMetaRow ticket={ticket} onUpdate={update} />
+            <LabelPicker value={ticket.labels || []} onChange={(labels) => update({ labels })} />
+            <DescriptionEditor
+              value={ticket.description || ''}
+              onSave={(description) => update({ description })}
+              attachments={ticket.attachments}
+              takenNames={ticketNames(ticket)}
+              commentBodies={(ticket.comments ?? []).map((c) => c.body)}
+              onAttach={(images) => addTicketAttachments(ticket.id, images)}
+              onRemoveAttachment={removeImage}
+            />
+            <CommentsThread ticket={ticket} />
+          </Box>
+        </AttachmentScope>
       </Box>
 
       <ConfirmDialog
