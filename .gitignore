@@ -29,3 +29,6 @@ coverage
 
 # Packaged builds
 release
+
+# Local dev data (userData for unpackaged runs)
+temp
