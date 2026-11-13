@@ -82,7 +82,9 @@ describe('useAppStateStore (browser mode)', () => {
     await act(() => result.current.updateTicket(ticket.id, { title: 'Renamed' }));
     const updated = result.current.state.tickets.find((t) => t.id === ticket.id)!;
     expect(updated.title).toBe('Renamed');
-    expect(updated.updated).toEqual(expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/));
+    expect(updated.updated).toEqual(
+      expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
+    );
   });
 
   it('adds and deletes comments', async () => {

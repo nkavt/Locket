@@ -35,7 +35,10 @@ describe('formatDate', () => {
     expect(formatDate('2026-05-12')).toBe('May 12');
   });
   it('reads a bare date as that local day, whatever the time zone', () => {
-    const local = new Date(2026, 4, 12).toLocaleDateString('en', { month: 'short', day: 'numeric' });
+    const local = new Date(2026, 4, 12).toLocaleDateString('en', {
+      month: 'short',
+      day: 'numeric',
+    });
     expect(formatDate('2026-05-12')).toBe(local);
   });
   it('returns empty for missing input', () => {
