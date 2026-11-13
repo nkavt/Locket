@@ -202,9 +202,13 @@
       "title": "About",
       "version": "Version",
       "runtime": "Runtime",
+      "chromium": "Chromium",
+      "node": "Node",
       "platform": "Platform",
       "browser": "browser",
-      "unknown": "unknown"
+      "unknown": "unknown",
+      "copy": "Copy details",
+      "copied": "Details copied"
     }
   }
 }

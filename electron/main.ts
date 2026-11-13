@@ -11,6 +11,7 @@ import { McpHost } from './mcp/http';
 import { isAllowedExternalUrl, isDevServerUrl } from './navigation';
 import { createTray } from './tray';
 import { resolveUserDataDir } from './user-data';
+import { readSystemInfo } from './system/info';
 
 // Must run before anything reads userData (settings, DB, MCP log, Chromium storage).
 const userDataDir = resolveUserDataDir({
@@ -169,6 +170,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('settings:get', () => readSettings());
   ipcMain.handle('settings:set', (_e, patch: Partial<PersistedSettings>) => writeSettings(patch));
   ipcMain.handle('user:get', () => getOsUserName());
+  ipcMain.handle('system:info', () => readSystemInfo());
   registerDataIpc((data) => broadcast('data:changed', data));
 
   ipcMain.handle('mcp:status', () => mcp.status());
