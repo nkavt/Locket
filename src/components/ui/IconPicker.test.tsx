@@ -51,6 +51,21 @@ describe('IconPicker', () => {
     expect(screen.queryAllByRole('option')).toHaveLength(0);
     expect(screen.getByText(/No icons match/)).toBeInTheDocument();
   });
+
+  it('keeps the same height whatever the search shows, so the dialog never moves', async () => {
+    render(<IconPicker value="" onChange={vi.fn()} suggestions={suggestions} color="#000" />);
+    const height = getComputedStyle(screen.getByRole('listbox')).height;
+    expect(height).toBe('70px');
+
+    const search = screen.getByLabelText('Search icons');
+    for (const query of ['a', 'bolt', 'zzzzqqq']) {
+      await userEvent.clear(search);
+      await userEvent.type(search, query);
+      expect(getComputedStyle(screen.getByRole('listbox')).height).toBe(height);
+    }
+    // "No match" shows inside the results box rather than as an extra line.
+    expect(screen.getByRole('listbox')).toHaveTextContent(/No icons match/);
+  });
 });
 
 describe('ColorPicker', () => {

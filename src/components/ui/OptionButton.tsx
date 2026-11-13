@@ -15,6 +15,9 @@ export interface OptionButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonE
   children?: ReactNode;
 }
 
+/** Width and height of a `square` button when no `size` is given. */
+export const OPTION_SQUARE_SIZE = 32;
+
 const RADIUS: Record<OptionButtonShape, string> = {
   square: '6px',
   circle: '50%',
@@ -51,8 +54,8 @@ function shapeStyles(
   }
 
   return {
-    width: size ?? 32,
-    height: size ?? 32,
+    width: size ?? OPTION_SQUARE_SIZE,
+    height: size ?? OPTION_SQUARE_SIZE,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
