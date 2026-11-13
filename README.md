@@ -91,7 +91,7 @@ git push origin v0.1.2
 
 The workflow runs the tests, packages the macOS app for Apple silicon and Intel, signs it with a Developer ID certificate, notarizes it with Apple, and publishes a GitHub Release named after the tag with the `.dmg` and `.zip` files attached. The tag must match the version in `package.json` or the build fails. Signing needs the `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_API_KEY_P8`, `APPLE_API_KEY_ID` and `APPLE_API_ISSUER` repository secrets; the workflow stops before publishing if any is missing or the signature doesn't verify.
 
-macOS builds are signed and notarized from v0.2.1 on, so they open without a Gatekeeper warning. Versions before v0.2.1 are not signed: on first launch, open **System Settings → Privacy & Security** and click **Open Anyway** (on macOS 14 and earlier, right-click the app and choose **Open**), or run `xattr -cr /Applications/Locket.app`.
+macOS builds are signed and notarized from v0.2.1 on, so they open without a Gatekeeper warning and need no extra steps. Only older versions (v0.2.0 and earlier) are unsigned and need a workaround on first launch: open **System Settings → Privacy & Security** and click **Open Anyway** (on macOS 14 and earlier, right-click the app and choose **Open**), or run `xattr -cr /Applications/Locket.app`.
 
 ## Contributing
 
