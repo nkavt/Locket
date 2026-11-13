@@ -204,7 +204,9 @@
       "runtime": "Runtime",
       "platform": "Platform",
       "browser": "browser",
-      "unknown": "unknown"
+      "unknown": "unknown",
+      "copy": "Copy details",
+      "copied": "Details copied"
     }
   }
 }
