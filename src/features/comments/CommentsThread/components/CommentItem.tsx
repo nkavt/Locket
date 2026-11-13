@@ -1,5 +1,4 @@
 import { Avatar, Box, IconButton, Typography } from '@mui/material';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/Icon';
 import { Markdown } from '@/components/Markdown';
@@ -17,16 +16,21 @@ interface CommentItemProps {
 
 export function CommentItem({ comment, usedIn, onDelete, onRemoveAttachment }: CommentItemProps) {
   const { t } = useTranslation();
-  const [hover, setHover] = useState(false);
   const attached = (comment.attachments ?? []).map((a): GridItem => ({
     name: a.name,
     usedIn: usedIn?.(a.name),
   }));
   return (
     <Box
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}
+      sx={{
+        display: 'flex',
+        gap: 1.5,
+        alignItems: 'flex-start',
+        '&:hover .comment-delete, &:focus-within .comment-delete': {
+          opacity: 1,
+          pointerEvents: 'auto',
+        },
+      }}
     >
       <Avatar sx={{ width: 32, height: 32, background: avatarColor(comment.author), fontSize: 13 }}>
         {initials(comment.author)}
@@ -41,11 +45,18 @@ export function CommentItem({ comment, usedIn, onDelete, onRemoveAttachment }: C
             {relativeTime(comment.ts)}
           </Typography>
           <Box sx={{ flex: 1 }} />
-          {hover && (
-            <IconButton size="small" onClick={onDelete} title={t('common.delete')}>
-              <Icon name="delete_outline" size={18} />
-            </IconButton>
-          )}
+          {/* Always mounted so it never changes the row's layout; shown on hover or focus.
+              The negative margin keeps the ~30px button from making the header taller than its text. */}
+          <IconButton
+            className="comment-delete"
+            size="small"
+            onClick={onDelete}
+            title={t('common.delete')}
+            aria-label={t('common.delete')}
+            sx={{ my: -0.75, opacity: 0, pointerEvents: 'none', transition: 'opacity 120ms' }}
+          >
+            <Icon name="delete_outline" size={18} />
+          </IconButton>
         </Box>
         {comment.body && (
           <Box sx={{ mt: 0.5 }}>
