@@ -19,7 +19,9 @@ jobs:
   mac:
     name: Build macOS and publish release
     runs-on: macos-latest
-    timeout-minutes: 30
+    # Notarization waits on Apple, which can take well over 30 minutes for new
+    # accounts or when its queue is busy.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
 
