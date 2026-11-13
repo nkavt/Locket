@@ -8,6 +8,7 @@ import { AboutCard } from './components/AboutCard';
 import { Icon } from '@/components/Icon';
 import { useAppState } from '@/state/useAppState';
 import { useSnackbar } from '@/state/useSnackbar';
+import { PAGE_MAX_WIDTH } from '@/theme';
 
 export interface SettingsFormValues {
   port: string;
@@ -60,7 +61,7 @@ export function Settings() {
         </Box>
 
         <Box sx={{ flex: 1, overflowY: 'auto', padding: '24px 28px 60px' }}>
-          <Box sx={{ maxWidth: 720 }}>
+          <Box sx={{ maxWidth: PAGE_MAX_WIDTH, mx: 'auto' }}>
             <McpServerCard />
             <StorageCard />
             <AboutCard />

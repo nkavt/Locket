@@ -16,6 +16,9 @@ export const PAGE_BACKGROUND = { light: '#fafafa', dark: '#0e1014' } as const sa
   string
 >;
 
+/** Max width of a page's content column (ticket page, settings), centred on wide windows. */
+export const PAGE_MAX_WIDTH = 920;
+
 const darkSurface = {
   page: PAGE_BACKGROUND.dark,
   paper: '#171a21',

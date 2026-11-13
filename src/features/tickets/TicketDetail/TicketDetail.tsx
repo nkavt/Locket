@@ -15,6 +15,7 @@ import { useDeleteAttachment } from '@/features/attachments/useDeleteAttachment'
 import { projectPath } from '@/router';
 import { useAppState } from '@/state/useAppState';
 import type { Project, Ticket } from '@/data/types';
+import { PAGE_MAX_WIDTH } from '@/theme';
 
 interface TicketDetailProps {
   ticket: Ticket;
@@ -49,7 +50,7 @@ export function TicketDetail({ ticket, project }: TicketDetailProps) {
 
       <Box sx={{ flex: 1, overflowY: 'auto' }}>
         <AttachmentScope value={ticket.id}>
-          <Box sx={{ maxWidth: 920, mx: 'auto', padding: '24px 32px 60px' }}>
+          <Box sx={{ maxWidth: PAGE_MAX_WIDTH, mx: 'auto', padding: '24px 32px 60px' }}>
             <TitleEditor value={ticket.title} onSave={(title) => update({ title })} />
             <TicketMetaRow ticket={ticket} onUpdate={update} />
             <LabelPicker value={ticket.labels || []} onChange={(labels) => update({ labels })} />
