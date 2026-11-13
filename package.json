@@ -2,7 +2,7 @@
   "name": "locket",
   "private": true,
   "license": "MIT",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -124,7 +124,11 @@
         }
       ],
       "icon": "build/icon.icns",
-      "darkModeSupport": true
+      "darkModeSupport": true,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "dmg": {
       "contents": [

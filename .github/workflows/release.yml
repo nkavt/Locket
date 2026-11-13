@@ -43,11 +43,46 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Package macOS (arm64 + x64, unsigned)
-        run: npm run dist:mac
+      - name: Check signing secrets are set
         env:
-          # No Developer ID certificate yet: skip signing and notarization.
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          missing=0
+          for name in CSC_LINK CSC_KEY_PASSWORD APPLE_API_KEY_P8 APPLE_API_KEY_ID APPLE_API_ISSUER; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository secret $name" >&2
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Package macOS (arm64 + x64, signed + notarized)
+        env:
+          # Developer ID Application certificate (.p12, base64) and its password.
+          # electron-builder imports it into a temporary keychain and signs with it.
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # App Store Connect API key: notarization runs automatically when these are set.
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          export APPLE_API_KEY="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+          printf '%s\n' "$APPLE_API_KEY_P8" > "$APPLE_API_KEY"
+          npm run dist:mac
+
+      - name: Verify signature and notarization
+        run: |
+          for app in release/mac*/Locket.app; do
+            echo "Checking $app"
+            codesign --verify --deep --strict --verbose=2 "$app"
+            spctl --assess --type execute --verbose "$app"
+            xcrun stapler validate "$app"
+          done
 
       - name: Publish release
         uses: softprops/action-gh-release@v3
