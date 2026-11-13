@@ -12,10 +12,7 @@ export interface SystemInfo {
   arch: string;
   /** macOS / Windows version, or the kernel release on Linux. */
   osVersion: string;
-  versions: {
-    electron: string;
-    node: string;
-  };
+  electronVersion: string;
 }
 
 const OS_NAMES: Record<string, string> = {
@@ -30,12 +27,11 @@ export function formatPlatform(info: Pick<SystemInfo, 'platform' | 'arch' | 'osV
   return [os, info.arch].filter(Boolean).join(' · ');
 }
 
-/** One line for bug reports: "Locket 0.2.1 · Electron 45.2.3 · Node 22.20.0 · macOS 26.7 arm64". */
+/** One line for bug reports: "Locket 0.2.1 · Electron 45.2.3 · macOS 26.7 arm64". */
 export function formatAboutLine(appVersion: string, info: SystemInfo): string {
   return [
     `Locket ${appVersion}`,
-    `Electron ${info.versions.electron}`,
-    `Node ${info.versions.node}`,
+    `Electron ${info.electronVersion}`,
     formatPlatform(info).replace(' · ', ' '),
   ].join(' · ');
 }

@@ -37,7 +37,7 @@ export const MOCK_SYSTEM_INFO: SystemInfo = {
   platform: 'darwin',
   arch: 'arm64',
   osVersion: '26.7',
-  versions: { electron: '45.2.3', node: '22.20.0' },
+  electronVersion: '45.2.3',
 };
 
 export function installMockLocket(

@@ -202,7 +202,6 @@
       "title": "About",
       "version": "Version",
       "runtime": "Runtime",
-      "node": "Node",
       "platform": "Platform",
       "browser": "browser",
       "unknown": "unknown",

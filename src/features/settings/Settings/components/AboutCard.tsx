@@ -9,7 +9,7 @@ import { monoFontFamily } from '@/theme';
 import type { SystemInfo } from '@/types/electron-api';
 import { formatAboutLine, formatPlatform } from '../../about';
 
-/** Real OS and runtime versions from the main process; null in the browser build. */
+/** Real OS, architecture and Electron version from the main process; null in the browser build. */
 function useSystemInfo(): SystemInfo | null {
   const [info, setInfo] = useState<SystemInfo | null>(null);
   useEffect(() => {
@@ -33,8 +33,7 @@ export function AboutCard() {
   const rows: [string, string][] = info
     ? [
         [t('settings.about.version'), APP_VERSION],
-        [t('settings.about.runtime'), `Electron ${info.versions.electron}`],
-        [t('settings.about.node'), info.versions.node],
+        [t('settings.about.runtime'), `Electron ${info.electronVersion}`],
         [t('settings.about.platform'), formatPlatform(info)],
       ]
     : [

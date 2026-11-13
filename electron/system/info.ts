@@ -20,9 +20,6 @@ export function readSystemInfo(
     platform: proc.platform,
     arch: proc.arch,
     osVersion,
-    versions: {
-      electron: proc.versions.electron ?? '',
-      node: proc.versions.node,
-    },
+    electronVersion: proc.versions.electron ?? '',
   };
 }

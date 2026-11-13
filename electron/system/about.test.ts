@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatAboutLine, formatPlatform, type SystemInfo } from './about';
 
-const versions = { electron: '45.2.3', node: '22.20.0' };
-
 describe('formatPlatform', () => {
   it.each([
     [{ platform: 'darwin', arch: 'arm64', osVersion: '26.7' }, 'macOS 26.7 · arm64'],
@@ -25,9 +23,14 @@ describe('formatPlatform', () => {
 
 describe('formatAboutLine', () => {
   it('puts everything a bug report needs on one line', () => {
-    const info: SystemInfo = { platform: 'darwin', arch: 'arm64', osVersion: '26.7', versions };
+    const info: SystemInfo = {
+      platform: 'darwin',
+      arch: 'arm64',
+      osVersion: '26.7',
+      electronVersion: '45.2.3',
+    };
     expect(formatAboutLine('0.2.1', info)).toBe(
-      'Locket 0.2.1 · Electron 45.2.3 · Node 22.20.0 · macOS 26.7 arm64',
+      'Locket 0.2.1 · Electron 45.2.3 · macOS 26.7 arm64',
     );
   });
 });

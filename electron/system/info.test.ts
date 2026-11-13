@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readSystemInfo } from './info';
 
-const versions = {
-  electron: '45.2.3',
-  node: '22.20.0',
-} as NodeJS.ProcessVersions;
+const versions = { electron: '45.2.3', node: '22.20.0' } as NodeJS.ProcessVersions;
 const kernel = () => '6.8.0';
 
 describe('readSystemInfo', () => {
@@ -19,7 +16,7 @@ describe('readSystemInfo', () => {
       platform: 'darwin',
       arch: 'arm64',
       osVersion: '26.7',
-      versions: { electron: '45.2.3', node: '22.20.0' },
+      electronVersion: '45.2.3',
     });
   });
 
@@ -49,9 +46,6 @@ describe('readSystemInfo', () => {
       arch: 'x64',
       versions: { node: '22.20.0' } as NodeJS.ProcessVersions,
     } as const;
-    expect(readSystemInfo(proc, kernel)).toMatchObject({
-      osVersion: '6.8.0',
-      versions: { electron: '', node: '22.20.0' },
-    });
+    expect(readSystemInfo(proc, kernel)).toMatchObject({ osVersion: '6.8.0', electronVersion: '' });
   });
 });
