@@ -9,7 +9,7 @@ const { readSnapshot } = await import('./snapshot');
 const { NotFoundError } = await import('./errors');
 
 const PROJECT = { id: 'p1', name: 'One', slug: 'one', icon: '', color: '', description: '' };
-const TODAY = new Date().toISOString().slice(0, 10);
+const ISO_TIMESTAMP = expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 
 describe('tickets service', () => {
   useTestDb(() => ({
@@ -28,8 +28,8 @@ describe('tickets service', () => {
       labels: [],
       due: null,
       description: '',
-      created: TODAY,
-      updated: TODAY,
+      created: ISO_TIMESTAMP,
+      updated: ISO_TIMESTAMP,
       comments: [],
     });
     expect(b).toMatchObject({ id: 'one-2', priority: 'high' });
@@ -63,7 +63,7 @@ describe('tickets service', () => {
       labels: ['a'],
       status: 'done',
       due: '2026-12-31',
-      updated: TODAY,
+      updated: ISO_TIMESTAMP,
     });
     expect(await getTicket('one-1')).toEqual(t);
     await expect(updateTicket('one-9', {})).rejects.toBeInstanceOf(NotFoundError);

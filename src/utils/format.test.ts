@@ -19,6 +19,11 @@ describe('relativeTime', () => {
     expect(relativeTime('2026-05-01T12:00:00Z')).toMatch(/2026/);
   });
 
+  it('shows the day for legacy date-only values instead of counting from midnight UTC', () => {
+    expect(relativeTime('2026-06-01')).toBe('Jun 1');
+    expect(relativeTime('2026-05-30')).toBe('May 30');
+  });
+
   it('returns empty for missing input', () => {
     expect(relativeTime(null)).toBe('');
     expect(relativeTime(undefined)).toBe('');
@@ -28,6 +33,10 @@ describe('relativeTime', () => {
 describe('formatDate', () => {
   it('formats as short month and day', () => {
     expect(formatDate('2026-05-12')).toBe('May 12');
+  });
+  it('reads a bare date as that local day, whatever the time zone', () => {
+    const local = new Date(2026, 4, 12).toLocaleDateString('en', { month: 'short', day: 'numeric' });
+    expect(formatDate('2026-05-12')).toBe(local);
   });
   it('returns empty for missing input', () => {
     expect(formatDate(null)).toBe('');

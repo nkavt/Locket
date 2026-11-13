@@ -2,7 +2,7 @@ import * as store from '../attachments/store';
 import { repos, withReader, withTransaction } from '../db';
 import type { NewTicketInput, PersistedTicket, TicketFilter, TicketPatch } from '../db/types';
 import { validateAttachments } from './attachments';
-import { NotFoundError, today } from './errors';
+import { NotFoundError, nowIso } from './errors';
 
 /** Pure predicate for the parts of the filter that are not plain column matches. */
 export const matchesFilter = (t: PersistedTicket, filter: TicketFilter): boolean => {
@@ -38,7 +38,7 @@ export const createTicket = (input: NewTicketInput): Promise<PersistedTicket> =>
     if (!project) throw new NotFoundError('Project', input.projectId);
     const files = await validateAttachments(null, input.attachments);
     const next = await repos.counters.next(em, project.id);
-    const now = today();
+    const now = nowIso();
     const ticket: PersistedTicket = {
       id: `${project.slug}-${next}`,
       projectId: project.id,
@@ -63,7 +63,7 @@ export const updateTicket = (id: string, patch: TicketPatch): Promise<PersistedT
   withTransaction(async (em) => {
     const ticket = await repos.tickets.findById(em, id);
     if (!ticket) throw new NotFoundError('Ticket', id);
-    const changes = { ...patch, updated: today() };
+    const changes = { ...patch, updated: nowIso() };
     await repos.tickets.update(em, id, changes);
     return { ...ticket, ...changes };
   });

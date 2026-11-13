@@ -2,7 +2,7 @@ import { ATTACHMENT_MIME_TYPES, isValidName, MAX_ATTACHMENT_BYTES } from '../att
 import * as store from '../attachments/store';
 import { repos, withReader, withTransaction } from '../db';
 import type { AttachmentData, NewAttachment, PersistedAttachment } from '../db/types';
-import { NotFoundError, ValidationError, today } from './errors';
+import { NotFoundError, ValidationError, nowIso } from './errors';
 
 export { ATTACHMENT_MIME_TYPES, MAX_ATTACHMENT_BYTES } from '../attachments/rules';
 export const MAX_ATTACHMENTS_PER_CALL = 20;
@@ -55,7 +55,7 @@ export const addTicketAttachments = (
     if (!(await repos.tickets.findById(em, ticketId))) throw new NotFoundError('Ticket', ticketId);
     const valid = await validateAttachments(ticketId, list);
     if (!valid.length) return [];
-    await repos.tickets.update(em, ticketId, { updated: today() });
+    await repos.tickets.update(em, ticketId, { updated: nowIso() });
     // Files last: if writing fails the transaction rolls back and nothing changed.
     return store.write(ticketId, null, valid);
   });
@@ -65,7 +65,7 @@ export const deleteAttachment = (ticketId: string, name: string): Promise<void> 
   withTransaction(async (em) => {
     if (!(await repos.tickets.findById(em, ticketId))) throw new NotFoundError('Ticket', ticketId);
     if (!(await store.remove(ticketId, name))) throw new NotFoundError('Attachment', name);
-    await repos.tickets.update(em, ticketId, { updated: today() });
+    await repos.tickets.update(em, ticketId, { updated: nowIso() });
   });
 
 /** Every image name used on a ticket, its comments included. */

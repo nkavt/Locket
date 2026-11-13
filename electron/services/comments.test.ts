@@ -7,7 +7,7 @@ const { addComment, deleteComment } = await import('./comments');
 const { getTicket } = await import('./tickets');
 const { NotFoundError } = await import('./errors');
 
-const TODAY = new Date().toISOString().slice(0, 10);
+const ISO_TIMESTAMP = expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 
 describe('comments service', () => {
   useTestDb(() => ({
@@ -23,7 +23,7 @@ describe('comments service', () => {
     expect(Number.isNaN(Date.parse(c.ts))).toBe(false);
     const ticket = await getTicket('one-1');
     expect(ticket.comments).toEqual([c]);
-    expect(ticket.updated).toBe(TODAY);
+    expect(ticket.updated).toEqual(ISO_TIMESTAMP);
   });
 
   it('keeps comments in time order with distinct ids even within one millisecond', async () => {

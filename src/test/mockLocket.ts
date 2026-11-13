@@ -136,7 +136,7 @@ export function installMockLocket(
           const project = d.projects.find((p) => p.id === input.projectId);
           if (!project) throw new Error(`Project "${input.projectId}" not found`);
           const next = (d.counters[project.id] || 0) + 1;
-          const today = new Date().toISOString().slice(0, 10);
+          const now = new Date().toISOString();
           const ticket = {
             id: `${project.slug}-${next}`,
             projectId: project.id,
@@ -147,8 +147,8 @@ export function installMockLocket(
             labels: input.labels ?? [],
             due: input.due ?? null,
             author: input.author,
-            created: today,
-            updated: today,
+            created: now,
+            updated: now,
             comments: [],
             attachments: store(`${project.slug}-${next}`, input.attachments),
           } satisfies Ticket;
@@ -159,7 +159,7 @@ export function installMockLocket(
         update: async (id, patch) => {
           const ticket = data().tickets.find((t) => t.id === id);
           if (!ticket) throw new Error(`Ticket "${id}" not found`);
-          Object.assign(ticket, patch, { updated: new Date().toISOString().slice(0, 10) });
+          Object.assign(ticket, patch, { updated: new Date().toISOString() });
           return ticket;
         },
         delete: async (id) => {
