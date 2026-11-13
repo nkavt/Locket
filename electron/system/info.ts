@@ -22,7 +22,6 @@ export function readSystemInfo(
     osVersion,
     versions: {
       electron: proc.versions.electron ?? '',
-      chrome: proc.versions.chrome ?? '',
       node: proc.versions.node,
     },
   };

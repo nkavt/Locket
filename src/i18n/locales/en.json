@@ -202,7 +202,6 @@
       "title": "About",
       "version": "Version",
       "runtime": "Runtime",
-      "chromium": "Chromium",
       "node": "Node",
       "platform": "Platform",
       "browser": "browser",

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { formatAboutLine, formatPlatform, type SystemInfo } from './about';
 
-const versions = { electron: '45.2.3', chrome: '142.0.7444.59', node: '22.20.0' };
+const versions = { electron: '45.2.3', node: '22.20.0' };
 
 describe('formatPlatform', () => {
   it.each([
@@ -27,7 +27,7 @@ describe('formatAboutLine', () => {
   it('puts everything a bug report needs on one line', () => {
     const info: SystemInfo = { platform: 'darwin', arch: 'arm64', osVersion: '26.7', versions };
     expect(formatAboutLine('0.2.1', info)).toBe(
-      'Locket 0.2.1 · Electron 45.2.3 · Chromium 142.0.7444.59 · Node 22.20.0 · macOS 26.7 arm64',
+      'Locket 0.2.1 · Electron 45.2.3 · Node 22.20.0 · macOS 26.7 arm64',
     );
   });
 });

@@ -34,7 +34,6 @@ export function AboutCard() {
     ? [
         [t('settings.about.version'), APP_VERSION],
         [t('settings.about.runtime'), `Electron ${info.versions.electron}`],
-        [t('settings.about.chromium'), info.versions.chrome],
         [t('settings.about.node'), info.versions.node],
         [t('settings.about.platform'), formatPlatform(info)],
       ]

@@ -14,7 +14,6 @@ export interface SystemInfo {
   osVersion: string;
   versions: {
     electron: string;
-    chrome: string;
     node: string;
   };
 }
@@ -31,12 +30,11 @@ export function formatPlatform(info: Pick<SystemInfo, 'platform' | 'arch' | 'osV
   return [os, info.arch].filter(Boolean).join(' · ');
 }
 
-/** One line for bug reports: "Locket 0.2.1 · Electron 45.2.3 · Chromium 142.0 · Node 22.20.0 · macOS 26.7 arm64". */
+/** One line for bug reports: "Locket 0.2.1 · Electron 45.2.3 · Node 22.20.0 · macOS 26.7 arm64". */
 export function formatAboutLine(appVersion: string, info: SystemInfo): string {
   return [
     `Locket ${appVersion}`,
     `Electron ${info.versions.electron}`,
-    `Chromium ${info.versions.chrome}`,
     `Node ${info.versions.node}`,
     formatPlatform(info).replace(' · ', ' '),
   ].join(' · ');

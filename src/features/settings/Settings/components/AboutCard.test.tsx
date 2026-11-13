@@ -11,7 +11,6 @@ describe('AboutCard', () => {
 
     expect(await screen.findByText('macOS 26.7 · arm64')).toBeInTheDocument();
     expect(screen.getByText('Electron 45.2.3')).toBeInTheDocument();
-    expect(screen.getByText('142.0.7444.59')).toBeInTheDocument();
     expect(screen.getByText('22.20.0')).toBeInTheDocument();
     expect(screen.queryByText(/MacIntel/)).not.toBeInTheDocument();
   });
@@ -23,7 +22,7 @@ describe('AboutCard', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Copy details' }));
     expect(await navigator.clipboard.readText()).toBe(
-      `Locket ${APP_VERSION} · Electron 45.2.3 · Chromium 142.0.7444.59 · Node 22.20.0 · macOS 26.7 arm64`,
+      `Locket ${APP_VERSION} · Electron 45.2.3 · Node 22.20.0 · macOS 26.7 arm64`,
     );
     expect(await screen.findByText('Details copied')).toBeInTheDocument();
   });

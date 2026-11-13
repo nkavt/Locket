@@ -3,7 +3,6 @@ import { readSystemInfo } from './info';
 
 const versions = {
   electron: '45.2.3',
-  chrome: '142.0.7444.59',
   node: '22.20.0',
 } as NodeJS.ProcessVersions;
 const kernel = () => '6.8.0';
@@ -20,7 +19,7 @@ describe('readSystemInfo', () => {
       platform: 'darwin',
       arch: 'arm64',
       osVersion: '26.7',
-      versions: { electron: '45.2.3', chrome: '142.0.7444.59', node: '22.20.0' },
+      versions: { electron: '45.2.3', node: '22.20.0' },
     });
   });
 
@@ -52,7 +51,7 @@ describe('readSystemInfo', () => {
     } as const;
     expect(readSystemInfo(proc, kernel)).toMatchObject({
       osVersion: '6.8.0',
-      versions: { electron: '', chrome: '', node: '22.20.0' },
+      versions: { electron: '', node: '22.20.0' },
     });
   });
 });
