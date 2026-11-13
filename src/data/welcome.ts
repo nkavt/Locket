@@ -3,11 +3,11 @@ import type { PersistedData } from '@/types/electron-api';
 export const WELCOME_PROJECT_ID = 'welcome';
 export const WELCOME_TICKET_ID = 'welcome-1';
 
-const today = () => new Date().toISOString().slice(0, 10);
+const nowIso = () => new Date().toISOString();
 
 /** What a brand-new workspace starts with: one project and one ticket that explain the app. */
 export const welcomeData = (): PersistedData => {
-  const now = today();
+  const now = nowIso();
   return {
     projects: [
       {
