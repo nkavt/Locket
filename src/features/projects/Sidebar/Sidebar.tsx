@@ -4,6 +4,7 @@ import { useMatch, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { SidebarRow } from './components/SidebarRow';
 import { ProjectMenu } from './components/ProjectMenu';
+import { scrollFadeMask, useScrollEdges } from './useScrollEdges';
 import { NewProjectDialog } from '../NewProjectDialog';
 import { EditProjectDialog } from '../EditProjectDialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -11,6 +12,7 @@ import { Icon } from '@/components/Icon';
 import { AppMark } from '@/components/AppMark';
 import { ProjectAvatar } from '@/components/ProjectAvatar';
 import { SectionLabel } from '@/components/SectionLabel';
+import { TruncatedText } from '@/components/TruncatedText';
 import { APP_VERSION } from '@/data/constants';
 import { projectPath, settingsPath } from '@/router';
 import { useAppState, useProjects, useTicketCounts } from '@/state/useAppState';
@@ -37,6 +39,12 @@ export function Sidebar() {
   const [newOpen, setNewOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState<Project | null>(null);
+  const {
+    ref: listRef,
+    onScroll: onListScroll,
+    top: fadeTop,
+    bottom: fadeBottom,
+  } = useScrollEdges<HTMLDivElement>(projects.length);
 
   const confirmDelete = () => {
     if (!deleting) return;
@@ -79,14 +87,22 @@ export function Sidebar() {
         </Box>
       </Box>
 
-      {/* Navigation */}
-      <Box sx={{ flex: 1, overflowY: 'auto', padding: '12px 8px' }}>
+      {/* Navigation: the Projects header and System section stay put, only the rows scroll. */}
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '12px 0',
+        }}
+      >
         <Box
           sx={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 8px 6px',
+            padding: '0 16px 6px',
           }}
         >
           <SectionLabel sx={{ fontWeight: 500 }}>{t('projects.sectionTitle')}</SectionLabel>
@@ -97,53 +113,57 @@ export function Sidebar() {
           </Tooltip>
         </Box>
 
-        {projects.map((p) => (
-          <SidebarRow
-            key={p.id}
-            to={projectPath(p.id)}
-            active={p.id === activeProjectId}
-            onContextMenu={(anchor) => setMenu({ project: p, anchor })}
-          >
-            <ProjectAvatar project={p} />
+        <Box
+          ref={listRef}
+          onScroll={onListScroll}
+          sx={{
+            flex: '0 1 auto',
+            minHeight: 0,
+            overflowY: 'auto',
+            padding: '0 8px',
+            maskImage: scrollFadeMask({ top: fadeTop, bottom: fadeBottom }),
+          }}
+        >
+          {projects.map((p) => (
+            <SidebarRow
+              key={p.id}
+              to={projectPath(p.id)}
+              active={p.id === activeProjectId}
+              onContextMenu={(anchor) => setMenu({ project: p, anchor })}
+            >
+              <ProjectAvatar project={p} />
+              <TruncatedText sx={{ flex: 1 }}>{p.name}</TruncatedText>
+              <Box sx={{ fontSize: 11, color: 'text.disabled', fontFamily: monoFontFamily }}>
+                {ticketCounts[p.id] || 0}
+              </Box>
+            </SidebarRow>
+          ))}
+        </Box>
+
+        <Box sx={{ padding: '18px 8px 0' }}>
+          <SectionLabel sx={{ fontWeight: 500, padding: '0 8px 6px' }}>
+            {t('projects.systemSection')}
+          </SectionLabel>
+
+          <SidebarRow to={settingsPath()} active={settingsActive}>
             <Box
               sx={{
-                flex: 1,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
+                width: 22,
+                height: 22,
+                borderRadius: '6px',
+                bgcolor: 'action.hover',
+                color: 'text.secondary',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
               }}
             >
-              {p.name}
+              <Icon name="settings" size={14} />
             </Box>
-            <Box sx={{ fontSize: 11, color: 'text.disabled', fontFamily: monoFontFamily }}>
-              {ticketCounts[p.id] || 0}
-            </Box>
+            <Box sx={{ flex: 1 }}>{t('projects.settingsLink')}</Box>
           </SidebarRow>
-        ))}
-
-        <Box sx={{ height: 18 }} />
-        <SectionLabel sx={{ fontWeight: 500, padding: '0 8px 6px' }}>
-          {t('projects.systemSection')}
-        </SectionLabel>
-
-        <SidebarRow to={settingsPath()} active={settingsActive}>
-          <Box
-            sx={{
-              width: 22,
-              height: 22,
-              borderRadius: '6px',
-              bgcolor: 'action.hover',
-              color: 'text.secondary',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <Icon name="settings" size={14} />
-          </Box>
-          <Box sx={{ flex: 1 }}>{t('projects.settingsLink')}</Box>
-        </SidebarRow>
+        </Box>
       </Box>
 
       {/* Footer / user */}

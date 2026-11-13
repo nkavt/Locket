@@ -1,5 +1,5 @@
 import { Box } from '@mui/material';
-import type { MouseEvent, ReactNode } from 'react';
+import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
 interface SidebarRowProps {
@@ -10,9 +10,17 @@ interface SidebarRowProps {
 }
 
 export function SidebarRow({ to, active, onContextMenu, children }: SidebarRowProps) {
+  const ref = useRef<HTMLAnchorElement>(null);
+
+  // Keep the selected row visible in a long, scrolled list (reloads, links, navigation).
+  useEffect(() => {
+    if (active) ref.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [active]);
+
   return (
     <Box
       component={Link}
+      ref={ref}
       to={to}
       aria-current={active ? 'page' : undefined}
       onContextMenu={(e: MouseEvent<HTMLAnchorElement>) => {
