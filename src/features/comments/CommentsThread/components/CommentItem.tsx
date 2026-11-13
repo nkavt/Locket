@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/Icon';
 import { Markdown } from '@/components/Markdown';
 import { AttachmentGrid, type GridItem } from '@/features/attachments/AttachmentGrid';
+import { referencedNames } from '@/features/attachments/files';
 import { avatarColor, formatDateTime, initials, relativeTime } from '@/utils/format';
 import type { Comment } from '@/data/types';
 
@@ -16,10 +17,12 @@ interface CommentItemProps {
 
 export function CommentItem({ comment, usedIn, onDelete, onRemoveAttachment }: CommentItemProps) {
   const { t } = useTranslation();
-  const attached = (comment.attachments ?? []).map((a): GridItem => ({
-    name: a.name,
-    usedIn: usedIn?.(a.name),
-  }));
+  // An image the body already shows inline isn't repeated as a thumbnail. It couldn't be
+  // deleted from there anyway while the body uses it.
+  const inline = referencedNames(comment.body);
+  const attached = (comment.attachments ?? [])
+    .filter((a) => !inline.has(a.name))
+    .map((a): GridItem => ({ name: a.name, usedIn: usedIn?.(a.name) }));
   return (
     <Box
       sx={{
@@ -60,7 +63,7 @@ export function CommentItem({ comment, usedIn, onDelete, onRemoveAttachment }: C
         </Box>
         {comment.body && (
           <Box sx={{ mt: 0.5 }}>
-            <Markdown source={comment.body} fontSize={13.5} />
+            <Markdown source={comment.body} fontSize={13.5} imageMaxHeight={360} />
           </Box>
         )}
         {attached.length > 0 && (

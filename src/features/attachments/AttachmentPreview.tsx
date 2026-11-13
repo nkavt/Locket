@@ -40,7 +40,14 @@ export function AttachmentPreview({ item, variant }: AttachmentPreviewProps) {
       sx={
         full
           ? { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 1 }
-          : { width: '100%', height: '100%', objectFit: 'cover', display: 'block' }
+          : // Anchored to the top: a tall screenshot's title or header is what identifies it.
+            {
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: 'top',
+              display: 'block',
+            }
       }
     />
   );
