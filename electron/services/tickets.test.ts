@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { useTestDb } from '../test/db';
+import { ticketFixture, useTestDb } from '../test/db';
 
 vi.mock('electron', () => ({ app: { getVersion: () => '0.0.0-test' } }));
 
@@ -117,5 +117,26 @@ describe('tickets service', () => {
       const [first] = await listTickets();
       expect(matchesFilter(first, { projectId: 'p1', status: 'done' })).toBe(false);
     });
+  });
+});
+
+describe('tickets service with date-only timestamps from older versions', () => {
+  useTestDb(() => ({
+    projects: [PROJECT],
+    tickets: [ticketFixture({ id: 'one-1', created: '2026-01-01', updated: '2026-01-01' })],
+    counters: { p1: 1 },
+  }));
+
+  it('reads them back unchanged', async () => {
+    expect(await getTicket('one-1')).toMatchObject({
+      created: '2026-01-01',
+      updated: '2026-01-01',
+    });
+  });
+
+  it('upgrades updated to a full timestamp on edit and keeps created', async () => {
+    const t = await updateTicket('one-1', { title: 'Renamed' });
+    expect(t).toMatchObject({ title: 'Renamed', created: '2026-01-01', updated: ISO_TIMESTAMP });
+    expect(await getTicket('one-1')).toEqual(t);
   });
 });
