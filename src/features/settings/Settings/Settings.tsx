@@ -4,6 +4,7 @@ import { FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { McpServerCard } from './components/McpServerCard';
 import { StorageCard } from './components/StorageCard';
+import { WorkflowsCard } from './components/WorkflowsCard';
 import { AboutCard } from './components/AboutCard';
 import { Icon } from '@/components/Icon';
 import { useAppState } from '@/state/useAppState';
@@ -63,6 +64,7 @@ export function Settings() {
         <Box sx={{ flex: 1, overflowY: 'auto', padding: '24px 28px 60px' }}>
           <Box sx={{ maxWidth: PAGE_MAX_WIDTH, mx: 'auto' }}>
             <McpServerCard />
+            <WorkflowsCard />
             <StorageCard />
             <AboutCard />
           </Box>

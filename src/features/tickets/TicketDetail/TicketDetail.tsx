@@ -13,7 +13,7 @@ import { AttachmentScope } from '@/features/attachments/AttachmentScope';
 import { ticketNames } from '@/features/attachments/names';
 import { useDeleteAttachment } from '@/features/attachments/useDeleteAttachment';
 import { projectPath } from '@/router';
-import { useAppState } from '@/state/useAppState';
+import { useAppState, useProjectWorkflow } from '@/state/useAppState';
 import type { Project, Ticket } from '@/data/types';
 import { PAGE_MAX_WIDTH } from '@/theme';
 
@@ -25,6 +25,7 @@ interface TicketDetailProps {
 export function TicketDetail({ ticket, project }: TicketDetailProps) {
   const { updateTicket, deleteTicket, addTicketAttachments } = useAppState();
   const removeImage = useDeleteAttachment(ticket.id);
+  const workflow = useProjectWorkflow(project);
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -52,7 +53,7 @@ export function TicketDetail({ ticket, project }: TicketDetailProps) {
         <AttachmentScope value={ticket.id}>
           <Box sx={{ maxWidth: PAGE_MAX_WIDTH, mx: 'auto', padding: '24px 32px 60px' }}>
             <TitleEditor value={ticket.title} onSave={(title) => update({ title })} />
-            <TicketMetaRow ticket={ticket} onUpdate={update} />
+            <TicketMetaRow ticket={ticket} workflow={workflow} onUpdate={update} />
             <LabelPicker value={ticket.labels || []} onChange={(labels) => update({ labels })} />
             <DescriptionEditor
               value={ticket.description || ''}

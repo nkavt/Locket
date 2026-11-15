@@ -1,21 +1,20 @@
 import type { SxProps, Theme } from '@mui/material';
 import { Icon } from './Icon';
-import { STATUSES } from '@/data/constants';
-import type { StatusValue } from '@/data/types';
+import { DEFAULT_STATUS_COLOR, DEFAULT_STATUS_ICON, type WorkflowStatus } from '@/data/workflows';
 
 interface StatusIconProps {
-  status: StatusValue;
+  /** From the project's workflow; undefined draws the neutral "to do" circle. */
+  status: Pick<WorkflowStatus, 'icon' | 'color'> | undefined;
   size?: number;
   sx?: SxProps<Theme>;
 }
 
 export function StatusIcon({ status, size = 18, sx }: StatusIconProps) {
-  const opt = STATUSES.find((s) => s.value === status);
   return (
     <Icon
-      name={opt?.icon || 'radio_button_unchecked'}
+      name={status?.icon || DEFAULT_STATUS_ICON}
       size={size}
-      sx={{ color: opt?.color || 'text.disabled', flexShrink: 0, ...sx }}
+      sx={{ color: status?.color || DEFAULT_STATUS_COLOR, flexShrink: 0, ...sx }}
     />
   );
 }

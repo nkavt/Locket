@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { useTestDb } from '../test/db';
-import type { PersistedData } from '../db/types';
+import type { LoosePersistedData } from '../workflows/normalize';
 
 vi.mock('electron', () => ({ app: { getVersion: () => '0.0.0-test' } }));
 
@@ -17,7 +17,7 @@ const project = (id: string, icon: string, color = '#1976d2') => ({
   description: '',
 });
 
-const SEED = (): PersistedData => ({
+const SEED = (): LoosePersistedData => ({
   projects: [project('kargi-ab12', 'storefront')],
   tickets: [],
   counters: { 'kargi-ab12': 0 },

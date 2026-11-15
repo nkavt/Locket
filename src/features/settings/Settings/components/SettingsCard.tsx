@@ -4,10 +4,12 @@ import type { ReactNode } from 'react';
 interface SettingsCardProps {
   title: string;
   subtitle?: string;
+  /** Shown at the top right, e.g. a "New …" button. */
+  action?: ReactNode;
   children: ReactNode;
 }
 
-export function SettingsCard({ title, subtitle, children }: SettingsCardProps) {
+export function SettingsCard({ title, subtitle, action, children }: SettingsCardProps) {
   return (
     <Box
       sx={{
@@ -20,9 +22,14 @@ export function SettingsCard({ title, subtitle, children }: SettingsCardProps) {
         boxShadow: 1,
       }}
     >
-      <Typography sx={{ fontSize: 15, fontWeight: 500, marginBottom: subtitle ? 0.5 : 1.75 }}>
-        {title}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+        <Typography
+          sx={{ flex: 1, fontSize: 15, fontWeight: 500, marginBottom: subtitle ? 0.5 : 1.75 }}
+        >
+          {title}
+        </Typography>
+        {action}
+      </Box>
       {subtitle && (
         <Typography sx={{ fontSize: 13, color: 'text.secondary', marginBottom: 2 }}>
           {subtitle}

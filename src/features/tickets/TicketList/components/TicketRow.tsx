@@ -6,16 +6,18 @@ import { PRIORITIES } from '@/data/constants';
 import { monoFontFamily } from '@/theme';
 import { formatDate } from '@/utils/format';
 import { isOverdue } from '../../utils';
-import type { Ticket } from '@/data/types';
+import type { Ticket, WorkflowStatus } from '@/data/types';
 
 interface TicketRowProps {
   ticket: Ticket;
+  /** The ticket's status in its project's workflow. */
+  status: WorkflowStatus | undefined;
   onClick: () => void;
 }
 
-export function TicketRow({ ticket, onClick }: TicketRowProps) {
+export function TicketRow({ ticket, status, onClick }: TicketRowProps) {
   const priority = PRIORITIES.find((p) => p.value === ticket.priority);
-  const overdue = isOverdue(ticket);
+  const overdue = isOverdue(ticket, status);
 
   return (
     <Box
@@ -32,7 +34,7 @@ export function TicketRow({ ticket, onClick }: TicketRowProps) {
         '&:hover': { bgcolor: 'action.hover' },
       }}
     >
-      <StatusIcon status={ticket.status} />
+      <StatusIcon status={status} />
       <Box
         sx={{
           fontFamily: monoFontFamily,

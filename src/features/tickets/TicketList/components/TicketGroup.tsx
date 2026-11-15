@@ -1,17 +1,15 @@
 import { Box, Typography } from '@mui/material';
 import { TicketRow } from './TicketRow';
-import { useTranslation } from 'react-i18next';
-import { Icon } from '@/components/Icon';
-import type { StatusOption, Ticket } from '@/data/types';
+import { StatusIcon } from '@/components/StatusIcon';
+import type { Ticket, WorkflowStatus } from '@/data/types';
 
 interface TicketGroupProps {
-  status: StatusOption;
+  status: WorkflowStatus;
   tickets: Ticket[];
   onOpenTicket: (id: string) => void;
 }
 
 export function TicketGroup({ status, tickets, onOpenTicket }: TicketGroupProps) {
-  const { t } = useTranslation();
   if (tickets.length === 0) return null;
   return (
     <Box sx={{ marginBottom: 2.25 }}>
@@ -25,7 +23,7 @@ export function TicketGroup({ status, tickets, onOpenTicket }: TicketGroupProps)
           whiteSpace: 'nowrap',
         }}
       >
-        <Icon name={status.icon} size={16} sx={{ color: status.color }} />
+        <StatusIcon status={status} size={16} />
         <Typography
           sx={{
             fontSize: 12,
@@ -34,13 +32,13 @@ export function TicketGroup({ status, tickets, onOpenTicket }: TicketGroupProps)
             textTransform: 'uppercase',
           }}
         >
-          {t(`status.${status.value}`)}
+          {status.name}
         </Typography>
         <Typography sx={{ fontSize: 12, color: 'text.disabled' }}>· {tickets.length}</Typography>
       </Box>
       <Box>
         {tickets.map((t) => (
-          <TicketRow key={t.id} ticket={t} onClick={() => onOpenTicket(t.id)} />
+          <TicketRow key={t.id} ticket={t} status={status} onClick={() => onOpenTicket(t.id)} />
         ))}
       </Box>
     </Box>

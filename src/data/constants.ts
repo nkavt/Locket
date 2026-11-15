@@ -1,16 +1,8 @@
-import type { LabelOption, PriorityOption, Settings, StatusOption } from './types';
+import type { LabelOption, PriorityOption, Settings } from './types';
 
 export const APP_VERSION: string = __APP_VERSION__;
 
-export const STATUSES: StatusOption[] = [
-  {
-    value: 'todo',
-    icon: 'radio_button_unchecked',
-    color: 'text.disabled',
-  },
-  { value: 'in_progress', icon: 'pending', color: 'info.main' },
-  { value: 'done', icon: 'check_circle', color: 'success.main' },
-];
+// Statuses come from each project's workflow: see data/workflows.ts.
 
 export const PRIORITIES: PriorityOption[] = [
   { value: 'low', icon: 'arrow_downward' },

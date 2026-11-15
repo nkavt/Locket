@@ -4,6 +4,7 @@ import { createContext, type McpServerHooks } from './context';
 import { registerResources } from './resources';
 import { registerProjectTools } from './tools/projects';
 import { registerTicketTools } from './tools/tickets';
+import { registerWorkflowTools } from './tools/workflows';
 
 export type { McpServerHooks } from './context';
 
@@ -13,6 +14,10 @@ const INSTRUCTIONS =
   'Locket is a local task planner. Projects contain tickets identified as <slug>-<n>. ' +
   'Use list_projects to discover project ids, then list_tickets / get_ticket to read, and ' +
   'create_ticket / update_ticket / add_comment to write. Descriptions and comments are markdown.\n\n' +
+  'Statuses: every project uses a workflow, a shared ordered set of statuses. list_projects shows ' +
+  "each project's statuses (id, name, category); a ticket's status must be one of them, given by " +
+  'id or name. Categories carry the meaning: todo, active, done, cancelled (closed, not done). ' +
+  'list_workflows / create_workflow / update_workflow / delete_workflow manage the sets.\n\n' +
   'Images: create_ticket and add_comment take `images` (each a local file `path` or base64 ' +
   '`data` + `mime`, with an optional `name`); attach_images adds them to an existing ticket. ' +
   'Every image has a name unique within its ticket, e.g. "login-screen.png". Show one inline ' +
@@ -30,6 +35,7 @@ export function createMcpServer(hooks: McpServerHooks = {}): McpServer {
 
   registerProjectTools(server, ctx);
   registerTicketTools(server, ctx);
+  registerWorkflowTools(server, ctx);
   registerResources(server, ctx);
 
   return server;

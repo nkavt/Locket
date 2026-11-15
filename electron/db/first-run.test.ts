@@ -8,9 +8,15 @@ const { readSnapshot, readSnapshotIfInitialized } = await import('../services/sn
 describe('fresh database', () => {
   afterAll(() => closeDb());
 
-  it('reads as null until first write, but as empty via readSnapshot', async () => {
+  it('reads as null until first write, but as empty (with the default workflow) via readSnapshot', async () => {
     await initDb({ database: ':memory:' });
     expect(await readSnapshotIfInitialized()).toBeNull();
-    expect(await readSnapshot()).toEqual({ projects: [], tickets: [], counters: {} });
+    const { DEFAULT_WORKFLOW } = await import('../workflows/rules');
+    expect(await readSnapshot()).toEqual({
+      workflows: [DEFAULT_WORKFLOW],
+      projects: [],
+      tickets: [],
+      counters: {},
+    });
   });
 });

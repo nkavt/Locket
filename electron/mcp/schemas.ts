@@ -5,8 +5,27 @@ import {
   isMaterialSymbol,
   unknownIconMessage,
 } from '../projects/icons';
+import { isStatusColor, STATUS_CATEGORIES, THEME_STATUS_COLORS } from '../workflows/rules';
 
-export const STATUS = z.enum(['todo', 'in_progress', 'done']);
+// Each project's workflow decides its statuses, so this can't be a fixed enum: the service
+// checks the value against the ticket's project and lists the allowed ones when it's wrong.
+export const STATUS = z
+  .string()
+  .min(1)
+  .describe(
+    "Status id or name from the project's workflow (list_projects shows them). " +
+      'Projects on the default workflow use todo, in_progress and done',
+  );
+export const STATUS_CATEGORY = z
+  .enum(STATUS_CATEGORIES)
+  .describe(
+    'What the status means: todo (not started; new tickets start in the first one), active, ' +
+      'done (counts as done), cancelled (closed but not done)',
+  );
+export const STATUS_COLOR = z
+  .string()
+  .refine(isStatusColor, `Hex colour like #1976d2, or one of ${THEME_STATUS_COLORS.join(', ')}`)
+  .describe(`Hex colour like #1976d2, or a theme colour: ${THEME_STATUS_COLORS.join(', ')}`);
 export const PRIORITY = z.enum(['low', 'medium', 'high']);
 export const DATE = z
   .string()

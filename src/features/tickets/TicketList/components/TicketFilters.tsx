@@ -4,15 +4,18 @@ import { Icon } from '@/components/Icon';
 import { SelectInput, TextInput, type SelectOption } from '@/components/ui';
 import { useTicketOptions } from '../../useTicketOptions';
 import type { TicketFilterState } from '../../utils';
+import type { Workflow } from '@/data/types';
 
 interface TicketFiltersProps {
+  /** The project's workflow, whose statuses the status filter offers. */
+  workflow: Workflow;
   value: TicketFilterState;
   onChange: (next: TicketFilterState) => void;
 }
 
-export function TicketFilters({ value, onChange }: TicketFiltersProps) {
+export function TicketFilters({ workflow, value, onChange }: TicketFiltersProps) {
   const { t } = useTranslation();
-  const { statuses, priorities } = useTicketOptions();
+  const { statuses, priorities } = useTicketOptions(workflow);
   const STATUS_OPTIONS: SelectOption[] = [
     { value: 'all', label: t('tickets.filters.allStatuses') },
     ...statuses,

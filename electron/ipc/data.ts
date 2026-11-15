@@ -5,8 +5,10 @@ import type {
   NewTicketInput,
   PersistedData,
   ProjectPatch,
+  ProjectUpdateOptions,
   TicketFilter,
   TicketPatch,
+  WorkflowPatch,
 } from '../db/types';
 import * as services from '../services';
 
@@ -32,11 +34,24 @@ export function registerDataIpc(notify: (data: PersistedData) => void): void {
   ipcMain.handle('projects:create', async (_e, input: NewProjectInput) =>
     changed(await services.createProject(input)),
   );
-  ipcMain.handle('projects:update', async (_e, id: string, patch: ProjectPatch) =>
-    changed(await services.updateProject(id, patch)),
+  ipcMain.handle(
+    'projects:update',
+    async (_e, id: string, patch: ProjectPatch, options?: ProjectUpdateOptions) =>
+      changed(await services.updateProject(id, patch, options)),
   );
   ipcMain.handle('projects:delete', async (_e, id: string) =>
     changed(await services.deleteProject(id)),
+  );
+
+  ipcMain.handle('workflows:list', () => services.listWorkflows());
+  ipcMain.handle('workflows:create', async (_e, input: services.NewWorkflowRequest) =>
+    changed(await services.createWorkflow(input)),
+  );
+  ipcMain.handle('workflows:update', async (_e, id: string, patch: WorkflowPatch) =>
+    changed(await services.updateWorkflow(id, patch)),
+  );
+  ipcMain.handle('workflows:delete', async (_e, id: string) =>
+    changed(await services.deleteWorkflow(id)),
   );
 
   ipcMain.handle('tickets:list', (_e, filter?: TicketFilter) => services.listTickets(filter));

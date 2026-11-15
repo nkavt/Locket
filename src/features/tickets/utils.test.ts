@@ -55,12 +55,17 @@ describe('filterTickets', () => {
 
 describe('isOverdue', () => {
   const now = new Date('2026-06-01');
+  const open = { category: 'todo' as const };
   it('is true for a past due date on an open ticket', () => {
-    expect(isOverdue(makeTicket({ due: '2026-05-01', status: 'todo' }), now)).toBe(true);
+    expect(isOverdue(makeTicket({ due: '2026-05-01' }), open, now)).toBe(true);
+    expect(isOverdue(makeTicket({ due: '2026-05-01' }), { category: 'active' }, now)).toBe(true);
   });
-  it('is false when done, in the future, or without a due date', () => {
-    expect(isOverdue(makeTicket({ due: '2026-05-01', status: 'done' }), now)).toBe(false);
-    expect(isOverdue(makeTicket({ due: '2026-07-01' }), now)).toBe(false);
-    expect(isOverdue(makeTicket({ due: null }), now)).toBe(false);
+  it('is false when done or cancelled, in the future, or without a due date', () => {
+    expect(isOverdue(makeTicket({ due: '2026-05-01' }), { category: 'done' }, now)).toBe(false);
+    expect(isOverdue(makeTicket({ due: '2026-05-01' }), { category: 'cancelled' }, now)).toBe(
+      false,
+    );
+    expect(isOverdue(makeTicket({ due: '2026-07-01' }), open, now)).toBe(false);
+    expect(isOverdue(makeTicket({ due: null }), open, now)).toBe(false);
   });
 });

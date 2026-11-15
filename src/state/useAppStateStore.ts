@@ -11,11 +11,14 @@ import {
 import * as apply from './localData';
 import { useCurrentUser } from './useCurrentUser';
 import type { AppData, Project, Settings, Ticket } from '@/data/types';
+import { normalizeData, type Workflow, type WorkflowPatch } from '@/data/workflows';
 import type {
   NewAttachment,
   NewProjectInput,
+  NewWorkflowRequest,
   PersistedData,
   ProjectPatch,
+  ProjectUpdateOptions,
   TicketPatch,
 } from '@/types/electron-api';
 
@@ -23,6 +26,7 @@ const PERSISTED_SETTINGS_KEYS = ['mcpPort'] as const;
 type PersistedKey = (typeof PERSISTED_SETTINGS_KEYS)[number];
 
 const EMPTY_STATE: AppData = {
+  workflows: [],
   projects: [],
   tickets: [],
   counters: {},
@@ -34,12 +38,7 @@ function readLegacyLocalStorage(): PersistedData | null {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<PersistedData>;
-    return {
-      projects: parsed.projects ?? [],
-      tickets: parsed.tickets ?? [],
-      counters: parsed.counters ?? {},
-    };
+    return normalizeData(JSON.parse(raw) as Partial<PersistedData>);
   } catch {
     return null;
   }
@@ -60,8 +59,12 @@ export interface AppStateApi {
   /** False until the initial load from the backend has finished. */
   hydrated: boolean;
   addProject: (input: NewProjectInput) => Promise<Project>;
-  updateProject: (id: string, patch: ProjectPatch) => Promise<void>;
+  /** Switching `workflowId` moves the tickets too: see ProjectUpdateOptions. */
+  updateProject: (id: string, patch: ProjectPatch, options?: ProjectUpdateOptions) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
+  createWorkflow: (input: NewWorkflowRequest) => Promise<Workflow>;
+  updateWorkflow: (id: string, patch: WorkflowPatch) => Promise<void>;
+  deleteWorkflow: (id: string) => Promise<void>;
   addTicket: (
     projectId: string,
     data: Partial<Omit<Ticket, 'id' | 'projectId' | 'attachments'>> & {
@@ -115,7 +118,7 @@ export function useAppStateStore(): AppStateApi {
           await be.replace(data);
         }
         if (hasElectronBridge()) localStorage.removeItem(LOCAL_STORAGE_KEY);
-        if (!cancelled) patchData(() => data);
+        if (!cancelled) patchData(() => normalizeData(data));
       } catch (err) {
         console.error('[data] failed to load:', err);
       } finally {
@@ -128,7 +131,7 @@ export function useAppStateStore(): AppStateApi {
   }, [be]);
 
   // Data changed outside this renderer (MCP tool calls, other windows): adopt it as-is.
-  useEffect(() => be.onChanged?.((data) => patchData(() => data)), [be]);
+  useEffect(() => be.onChanged?.((data) => patchData(() => normalizeData(data))), [be]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.locket) return;
@@ -137,8 +140,13 @@ export function useAppStateStore(): AppStateApi {
     });
   }, []);
 
-  const api = useMemo<AppStateApi>(
-    () => ({
+  const api = useMemo<AppStateApi>(() => {
+    /** Adopt the backend's whole dataset, for changes that touch many tickets at once. */
+    const reload = async () => {
+      const data = await be.load();
+      if (data) patchData(() => normalizeData(data));
+    };
+    return {
       state,
       hydrated,
       async addProject(input) {
@@ -146,13 +154,27 @@ export function useAppStateStore(): AppStateApi {
         patchData((d) => apply.withProject(d, project));
         return project;
       },
-      async updateProject(id, patch) {
-        const project = await be.updateProject(id, patch);
+      async updateProject(id, patch, options) {
+        const project = await be.updateProject(id, patch, options);
         patchData((d) => apply.withProject(d, project));
+        if (patch.workflowId !== undefined) await reload();
       },
       async deleteProject(id) {
         await be.deleteProject(id);
         patchData((d) => apply.withoutProject(d, id));
+      },
+      async createWorkflow(input) {
+        const workflow = await be.createWorkflow(input);
+        await reload();
+        return workflow;
+      },
+      async updateWorkflow(id, patch) {
+        await be.updateWorkflow(id, patch);
+        await reload();
+      },
+      async deleteWorkflow(id) {
+        await be.deleteWorkflow(id);
+        await reload();
       },
       async addTicket(projectId, data) {
         const ticket = await be.createTicket({
@@ -213,9 +235,8 @@ export function useAppStateStore(): AppStateApi {
         await be.replace(data);
         patchData(() => data);
       },
-    }),
-    [state, hydrated, currentUser, be],
-  );
+    };
+  }, [state, hydrated, currentUser, be]);
 
   return api;
 }

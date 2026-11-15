@@ -1,4 +1,9 @@
-export type StatusValue = 'todo' | 'in_progress' | 'done';
+import type { Workflow } from './workflows';
+
+export type { StatusCategory, Workflow, WorkflowStatus } from './workflows';
+
+/** A status id from the ticket's project workflow (e.g. "todo" on the default workflow). */
+export type StatusValue = string;
 export type PriorityValue = 'low' | 'medium' | 'high';
 
 export interface Project {
@@ -8,6 +13,8 @@ export interface Project {
   icon: string;
   color: string;
   description: string;
+  /** Whose statuses this project's tickets use. */
+  workflowId: string;
 }
 
 /** Image metadata. The bytes are fetched on demand (see `useAttachmentUrl`). */
@@ -49,17 +56,11 @@ export interface Settings {
 }
 
 export interface AppData {
+  workflows: Workflow[];
   projects: Project[];
   tickets: Ticket[];
   counters: Record<string, number>;
   settings: Settings;
-}
-
-export interface StatusOption {
-  value: StatusValue;
-  icon: string;
-  /** MUI palette path, e.g. 'success.main' */
-  color: string;
 }
 
 export interface PriorityOption {

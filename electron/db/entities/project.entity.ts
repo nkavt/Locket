@@ -8,4 +8,6 @@ export class ProjectEntity {
   @Column('text') icon!: string;
   @Column('text') color!: string;
   @Column('text') description!: string;
+  // Projects from before workflows existed get the default one when the column is added.
+  @Column({ type: 'text', default: 'default' }) workflowId!: string;
 }

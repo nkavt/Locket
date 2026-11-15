@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { useAppStateStore } from './useAppStateStore';
+import { defaultWorkflow } from '@/data/workflows';
 import { makeProject, makeTicket } from '@/test/fixtures';
 import { installMockLocket } from '@/test/mockLocket';
 
@@ -14,6 +15,7 @@ describe('useAppStateStore external changes', () => {
 
     act(() =>
       mock.emitDataChanged({
+        workflows: [defaultWorkflow()],
         projects: [makeProject({ id: 'db' })],
         tickets: [makeTicket({ id: 'tst-9', projectId: 'db', title: 'From MCP' })],
         counters: { db: 1 },

@@ -1,4 +1,5 @@
 import type { PersistedData } from '@/types/electron-api';
+import { DEFAULT_WORKFLOW_ID, defaultWorkflow } from './workflows';
 
 export const WELCOME_PROJECT_ID = 'welcome';
 export const WELCOME_TICKET_ID = 'welcome-1';
@@ -9,6 +10,7 @@ const nowIso = () => new Date().toISOString();
 export const welcomeData = (): PersistedData => {
   const now = nowIso();
   return {
+    workflows: [defaultWorkflow()],
     projects: [
       {
         id: WELCOME_PROJECT_ID,
@@ -18,6 +20,7 @@ export const welcomeData = (): PersistedData => {
         color: '#1976d2',
         description:
           '# Welcome\n\nA starter project so you can see how Locket works. Rename it, edit this description, or delete it once you have created your own.',
+        workflowId: DEFAULT_WORKFLOW_ID,
       },
     ],
     tickets: [

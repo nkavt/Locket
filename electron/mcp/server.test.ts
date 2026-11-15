@@ -95,6 +95,10 @@ describe('MCP server', () => {
       'get_attachment',
       'delete_attachment',
       'delete_ticket',
+      'list_workflows',
+      'create_workflow',
+      'update_workflow',
+      'delete_workflow',
     ]);
     const resources = (await client.listResources()).resources.map((r) => r.uri);
     expect(resources).toEqual([
@@ -399,5 +403,83 @@ describe('ticketToMarkdown', () => {
     expect(md).toContain('_No description._');
     expect(md).toContain('_No comments yet._');
     expect(md).toContain('- **Labels:** _none_');
+  });
+});
+
+describe('MCP workflows', () => {
+  useTestDb(SEED);
+
+  it('shows each project its workflow statuses', async () => {
+    const { client } = await connect();
+    const [p1] = parse(await client.callTool({ name: 'list_projects', arguments: {} }));
+    expect(p1.workflow).toEqual({
+      id: 'default',
+      name: 'Default',
+      statuses: [
+        { id: 'todo', name: 'To Do', category: 'todo' },
+        { id: 'in_progress', name: 'In Progress', category: 'active' },
+        { id: 'done', name: 'Done', category: 'done' },
+      ],
+    });
+  });
+
+  it('adds Cancelled through update_workflow and sets it by name', async () => {
+    const { client } = await connect();
+    const [w] = parse(await client.callTool({ name: 'list_workflows', arguments: {} }));
+    const statuses = w.statuses.map(({ id, name }: { id: string; name: string }) => ({ id, name }));
+    const updated = parse(
+      await client.callTool({
+        name: 'update_workflow',
+        arguments: {
+          id: 'default',
+          statuses: [...statuses, { name: 'Cancelled', category: 'cancelled', icon: 'cancel' }],
+        },
+      }),
+    );
+    expect(updated.statuses.map((s: { name: string }) => s.name)).toEqual([
+      'To Do',
+      'In Progress',
+      'Done',
+      'Cancelled',
+    ]);
+    const t = parse(
+      await client.callTool({
+        name: 'update_ticket',
+        arguments: { id: 'one-1', status: 'cancelled' },
+      }),
+    );
+    expect(t.status).toBe(updated.statuses[3].id);
+  });
+
+  it('rejects a status outside the project workflow with the allowed values', async () => {
+    const { client } = await connect();
+    const flow = parse(
+      await client.callTool({
+        name: 'create_workflow',
+        arguments: {
+          name: 'Flow',
+          statuses: [{ name: 'Inbox' }, { name: 'Closed', category: 'done' }],
+        },
+      }),
+    );
+    await client.callTool({ name: 'update_project', arguments: { id: 'p2', workflowId: flow.id } });
+    const r = await client.callTool({
+      name: 'create_ticket',
+      arguments: { projectId: 'p2', title: 'x', status: 'in_progress' },
+    });
+    expect(r.isError).toBe(true);
+    expect(text(r)).toContain('Unknown status "in_progress" for workflow "Flow". Allowed:');
+    expect(text(r)).toContain('(Inbox)');
+    // The project's existing done ticket moved to the matching category.
+    const two = parse(await client.callTool({ name: 'get_ticket', arguments: { id: 'two-1' } }));
+    expect(two.status).toBe(flow.statuses[1].id);
+  });
+
+  it("refuses to delete a workflow in use, and renders a ticket's status name", async () => {
+    const { client } = await connect();
+    const r = await client.callTool({ name: 'delete_workflow', arguments: { id: 'default' } });
+    expect(r.isError).toBe(true);
+    const res = await client.readResource({ uri: 'locket://tickets/one-1' });
+    expect(resourceText(res)).toContain('- **Status:** To Do (`todo`)');
   });
 });

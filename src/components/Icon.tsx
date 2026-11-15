@@ -55,6 +55,8 @@ import ChevronRight from '@mui/icons-material/ChevronRight';
 import AddPhotoAlternate from '@mui/icons-material/AddPhotoAlternateOutlined';
 import InputIcon from '@mui/icons-material/Input';
 import type { ComponentType } from 'react';
+import { MaterialSymbol } from './MaterialSymbol';
+import { isMaterialSymbol } from '@/data/projectIcons';
 
 const ICON_MAP: Record<string, ComponentType<SvgIconProps>> = {
   add: Add,
@@ -119,8 +121,15 @@ interface IconProps extends Omit<SvgIconProps, 'fontSize'> {
   size?: number;
 }
 
+/**
+ * The app's own icons come from the SVG set above. Any other Material Symbols name (a custom
+ * status icon, say) is drawn by the bundled font instead, so user-picked icons work anywhere.
+ */
 export function Icon({ name, size = 20, sx, ...rest }: IconProps) {
   const Cmp = ICON_MAP[name];
+  if (!Cmp && isMaterialSymbol(name)) {
+    return <MaterialSymbol name={name} size={size} sx={sx} />;
+  }
   if (!Cmp) {
     return (
       <span

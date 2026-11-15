@@ -10,10 +10,12 @@ import type {
   PersistedProject,
   PersistedTicket,
   ProjectPatch,
+  ProjectUpdateOptions,
   TicketFilter,
   TicketPatch,
+  WorkflowPatch,
 } from './db/types';
-import type { ProjectSummary } from './services';
+import type { NewWorkflowRequest, ProjectSummary, WorkflowSummary } from './services';
 import type { StorageUsage } from './attachments/store';
 import type { McpLogLine, McpStatus } from './mcp/http';
 import type { SystemInfo } from './system/about';
@@ -54,10 +56,21 @@ contextBridge.exposeInMainWorld('locket', {
     list: (): Promise<ProjectSummary[]> => ipcRenderer.invoke('projects:list'),
     create: (input: NewProjectInput): Promise<PersistedProject> =>
       ipcRenderer.invoke('projects:create', input),
-    update: (id: string, patch: ProjectPatch): Promise<PersistedProject> =>
-      ipcRenderer.invoke('projects:update', id, patch),
+    update: (
+      id: string,
+      patch: ProjectPatch,
+      options?: ProjectUpdateOptions,
+    ): Promise<PersistedProject> => ipcRenderer.invoke('projects:update', id, patch, options),
     delete: (id: string): Promise<{ deletedTickets: number }> =>
       ipcRenderer.invoke('projects:delete', id),
+  },
+  workflows: {
+    list: (): Promise<WorkflowSummary[]> => ipcRenderer.invoke('workflows:list'),
+    create: (input: NewWorkflowRequest): Promise<WorkflowSummary> =>
+      ipcRenderer.invoke('workflows:create', input),
+    update: (id: string, patch: WorkflowPatch): Promise<WorkflowSummary> =>
+      ipcRenderer.invoke('workflows:update', id, patch),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('workflows:delete', id),
   },
   tickets: {
     list: (filter?: TicketFilter): Promise<PersistedTicket[]> =>

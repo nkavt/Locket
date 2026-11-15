@@ -1,4 +1,4 @@
-import type { EntityManager, FindOptionsWhere } from 'typeorm';
+import { In, type EntityManager, type FindOptionsWhere } from 'typeorm';
 import { TicketEntity } from '../entities/ticket.entity';
 import type { PersistedComment, PersistedTicket, TicketFilter, TicketPatch } from '../types';
 import * as attachments from '../../attachments/store';
@@ -72,6 +72,46 @@ export const countByProject = async (em: EntityManager): Promise<Record<string, 
     .groupBy('t.projectId')
     .getRawMany<{ projectId: string; count: number | string }>();
   return Object.fromEntries(rows.map((r) => [r.projectId, Number(r.count)]));
+};
+
+/** Number of tickets per status id, optionally only in some projects. */
+export const countByStatus = async (
+  em: EntityManager,
+  projectIds?: string[],
+): Promise<Record<string, number>> => {
+  const qb = em
+    .createQueryBuilder(TicketEntity, 't')
+    .select('t.status', 'status')
+    .addSelect('COUNT(*)', 'count')
+    .groupBy('t.status');
+  if (projectIds) {
+    if (!projectIds.length) return {};
+    qb.where('t.projectId IN (:...projectIds)', { projectIds });
+  }
+  const rows = await qb.getRawMany<{ status: string; count: number | string }>();
+  return Object.fromEntries(rows.map((r) => [r.status, Number(r.count)]));
+};
+
+/**
+ * Move tickets between statuses: `moves` maps old status id → new status id. Only touches
+ * tickets of `projectIds`. Leaves `updated` alone: the tickets themselves did not change.
+ */
+export const moveStatuses = async (
+  em: EntityManager,
+  projectIds: string[],
+  moves: Record<string, string>,
+): Promise<void> => {
+  const entries = Object.entries(moves).filter(([from, to]) => from !== to);
+  if (!projectIds.length || !entries.length) return;
+  // Pick every ticket before writing any, so a → b, b → c never sends a's tickets on to c.
+  const rows = await em.find(TicketEntity, {
+    select: { id: true, status: true },
+    where: { projectId: In(projectIds), status: In(entries.map(([from]) => from)) },
+  });
+  for (const [from, to] of entries) {
+    const ids = rows.filter((r) => r.status === from).map((r) => r.id);
+    if (ids.length) await em.update(TicketEntity, { id: In(ids) }, { status: to });
+  }
 };
 
 export const insert = async (em: EntityManager, t: PersistedTicket): Promise<void> => {

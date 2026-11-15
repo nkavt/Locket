@@ -3,17 +3,23 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ProjectAvatar } from '@/components/ProjectAvatar';
 import { monoFontFamily } from '@/theme';
-import type { Project, Ticket } from '@/data/types';
+import { findStatus } from '@/data/workflows';
+import type { Project, StatusCategory, Ticket, Workflow } from '@/data/types';
 
 interface TicketListHeaderProps {
   project: Project;
+  workflow: Workflow;
   tickets: Ticket[];
   action?: ReactNode;
 }
 
-export function TicketListHeader({ project, tickets, action }: TicketListHeaderProps) {
+export function TicketListHeader({ project, workflow, tickets, action }: TicketListHeaderProps) {
   const { t } = useTranslation();
-  const done = tickets.filter((x) => x.status === 'done').length;
+  // Progress reads categories: cancelled tickets are closed but count neither way.
+  const count = (category: StatusCategory) =>
+    tickets.filter((x) => findStatus(workflow, x.status)?.category === category).length;
+  const done = count('done');
+  const cancelled = count('cancelled');
   return (
     <Box sx={{ p: '20px 28px 14px', borderBottom: 1, borderColor: 'divider' }}>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.75 }}>
@@ -40,8 +46,9 @@ export function TicketListHeader({ project, tickets, action }: TicketListHeaderP
             </Box>
           </Box>
           <Typography sx={{ fontSize: 12.5, color: 'text.secondary', mt: 0.5 }}>
-            {t('tickets.ticketCount', { count: tickets.length })} ·{' '}
+            {t('tickets.ticketCount', { count: tickets.length - cancelled })} ·{' '}
             {t('tickets.doneCount', { count: done })}
+            {cancelled > 0 && <> · {t('tickets.cancelledCount', { count: cancelled })}</>}
           </Typography>
         </Box>
         {action}

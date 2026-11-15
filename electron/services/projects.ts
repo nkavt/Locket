@@ -5,6 +5,7 @@ import {
   type NewProjectInput,
   type PersistedProject,
   type ProjectPatch,
+  type ProjectUpdateOptions,
 } from '../db/types';
 import {
   DEFAULT_PROJECT_COLOR,
@@ -13,7 +14,9 @@ import {
   isMaterialSymbol,
   unknownIconMessage,
 } from '../projects/icons';
+import { DEFAULT_WORKFLOW_ID, planWorkflowSwitch } from '../workflows/rules';
 import { NotFoundError, ValidationError } from './errors';
+import { workflowOfProject } from './workflows';
 
 export interface ProjectSummary extends PersistedProject {
   ticketCount: number;
@@ -54,6 +57,10 @@ export const createProject = (input: NewProjectInput): Promise<PersistedProject>
     if (await repos.projects.findBySlug(em, input.slug)) {
       throw new ValidationError(`Slug "${input.slug}" already in use`);
     }
+    const workflowId = input.workflowId ?? DEFAULT_WORKFLOW_ID;
+    if (!(await repos.workflows.findById(em, workflowId))) {
+      throw new NotFoundError('Workflow', workflowId);
+    }
     const project: PersistedProject = {
       id: `${input.slug}-${Math.random().toString(36).slice(2, 6)}`,
       name: input.name,
@@ -61,17 +68,32 @@ export const createProject = (input: NewProjectInput): Promise<PersistedProject>
       icon: input.icon ?? DEFAULT_PROJECT_ICON,
       color: input.color ?? DEFAULT_PROJECT_COLOR,
       description: input.description ?? `# ${input.name}\n\n`,
+      workflowId,
     };
     await repos.projects.insert(em, project);
     await repos.counters.set(em, project.id, 0);
     return project;
   });
 
-export const updateProject = (id: string, patch: ProjectPatch): Promise<PersistedProject> =>
+/**
+ * Change a project's fields. Switching `workflowId` also moves its tickets to statuses of the
+ * new workflow: by `statusMap` where given, else to the first status of the same category.
+ */
+export const updateProject = (
+  id: string,
+  patch: ProjectPatch,
+  { statusMap }: ProjectUpdateOptions = {},
+): Promise<PersistedProject> =>
   withTransaction(async (em) => {
     const project = await repos.projects.findById(em, id);
     if (!project) throw new NotFoundError('Project', id);
     checkLook(patch);
+    if (patch.workflowId !== undefined && patch.workflowId !== project.workflowId) {
+      const to = await repos.workflows.findById(em, patch.workflowId);
+      if (!to) throw new NotFoundError('Workflow', patch.workflowId);
+      const from = await workflowOfProject(em, project);
+      await repos.tickets.moveStatuses(em, [id], planWorkflowSwitch(from, to, statusMap));
+    }
     await repos.projects.update(em, id, patch);
     return { ...project, ...patch };
   });

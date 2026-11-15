@@ -9,7 +9,13 @@ const toModel = (e: ProjectEntity): PersistedProject => ({
   icon: e.icon,
   color: e.color,
   description: e.description,
+  workflowId: e.workflowId,
 });
+
+export const findByWorkflow = async (
+  em: EntityManager,
+  workflowId: string,
+): Promise<PersistedProject[]> => (await em.findBy(ProjectEntity, { workflowId })).map(toModel);
 
 /** All projects in creation order. */
 export const findAll = async (em: EntityManager): Promise<PersistedProject[]> =>

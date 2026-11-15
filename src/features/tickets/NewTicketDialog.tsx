@@ -15,7 +15,8 @@ import { LABEL_PALETTE } from '@/data/constants';
 import { useTicketOptions } from './useTicketOptions';
 import { AttachmentGrid } from '@/features/attachments/AttachmentGrid';
 import { usePendingAttachments } from '@/features/attachments/usePendingAttachments';
-import { useAppState } from '@/state/useAppState';
+import { useAppState, useProjectWorkflow } from '@/state/useAppState';
+import { defaultStatus } from '@/data/workflows';
 import { useSnackbar } from '@/state/useSnackbar';
 import { monoFontFamily } from '@/theme';
 import type { PriorityValue, Project, StatusValue, Ticket } from '@/data/types';
@@ -37,10 +38,9 @@ interface TicketFormValues {
   due: string;
 }
 
-const DEFAULTS: TicketFormValues = {
+const DEFAULTS: Omit<TicketFormValues, 'status'> = {
   title: '',
   description: '',
-  status: 'todo',
   priority: 'medium',
   labels: [],
   due: '',
@@ -49,7 +49,10 @@ const DEFAULTS: TicketFormValues = {
 export function NewTicketDialog({ open, project, onClose, onCreated }: NewTicketDialogProps) {
   const { t } = useTranslation();
   const { addTicket } = useAppState();
-  const { statuses, priorities } = useTicketOptions();
+  const workflow = useProjectWorkflow(project);
+  const { statuses, priorities } = useTicketOptions(workflow);
+  // New tickets start in the workflow's first "to do" status.
+  const initialStatus = defaultStatus(workflow).id;
   const {
     register,
     control,
@@ -58,7 +61,10 @@ export function NewTicketDialog({ open, project, onClose, onCreated }: NewTicket
 
     setValue,
     formState: { isValid },
-  } = useForm<TicketFormValues>({ mode: 'onChange', defaultValues: DEFAULTS });
+  } = useForm<TicketFormValues>({
+    mode: 'onChange',
+    defaultValues: { ...DEFAULTS, status: initialStatus },
+  });
   const snack = useSnackbar();
 
   const description = useWatch({ control, name: 'description' });
@@ -73,7 +79,7 @@ export function NewTicketDialog({ open, project, onClose, onCreated }: NewTicket
 
   useEffect(() => {
     if (!open) return;
-    reset(DEFAULTS);
+    reset({ ...DEFAULTS, status: initialStatus });
     resetImages();
     // Only on open: resetImages changes identity with every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
