@@ -6,6 +6,7 @@ import type {
   NewAttachment,
   PersistedData,
   PersistedSettings,
+  SystemInfo,
 } from '@/types/electron-api';
 
 type LocketBridge = Window['locket'];
@@ -31,6 +32,13 @@ export interface MockLocket {
 }
 
 const DEFAULT_SETTINGS: PersistedSettings = { mcpPort: 7821 };
+
+export const MOCK_SYSTEM_INFO: SystemInfo = {
+  platform: 'darwin',
+  arch: 'arm64',
+  osVersion: '26.7',
+  electronVersion: '45.2.3',
+};
 
 export function installMockLocket(
   init: Partial<Pick<MockLocket, 'data' | 'settings' | 'user'>> = {},
@@ -73,6 +81,7 @@ export function installMockLocket(
         },
       },
       user: { get: async () => mock.user },
+      system: { info: async () => MOCK_SYSTEM_INFO },
       data: {
         get: async () => mock.data,
         replace: async (data) => {
