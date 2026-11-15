@@ -52,3 +52,73 @@ describe('Markdown images', () => {
     expect(screen.getByRole('link', { name: 'login-screen.png' })).toBeInTheDocument();
   });
 });
+
+const fence = (lang: string, body: string) => '```' + lang + '\n' + body + '\n```';
+
+describe('Markdown code highlighting', () => {
+  const blockOf = (container: HTMLElement) => container.querySelector('pre code')!;
+  const labelOf = (container: HTMLElement) =>
+    container.querySelector('.code-label')?.textContent ?? null;
+
+  it.each([
+    ['json', '{"id": 1, "done": false}', 'hljs-attr'],
+    ['ts', 'const x: number = 1;', 'hljs-keyword'],
+    ['bash', 'npm install # deps', 'hljs-comment'],
+    ['yml', 'name: locket\nenabled: true', 'hljs-attr'],
+    ['diff', '-old\n+new', 'hljs-addition'],
+  ])('highlights a %s fence and labels it', (lang, body, token) => {
+    const { container } = render(<Markdown source={fence(lang, body)} />);
+    expect(blockOf(container).querySelector(`.${token}`)).not.toBeNull();
+    expect(labelOf(container)).toBe(lang);
+  });
+
+  it('detects a confident untagged block and marks the label as a guess', () => {
+    const json = '{\n  "name": "locket",\n  "private": true,\n  "version": "0.2.1"\n}';
+    const { container } = render(<Markdown source={fence('', json)} />);
+    expect(blockOf(container).querySelector('.hljs-attr')).not.toBeNull();
+    expect(labelOf(container)).toBe('json · auto');
+  });
+
+  it('detects untagged TypeScript', () => {
+    const ts = 'export function add(a: number, b: number): number {\n  // sum\n  return a + b;\n}';
+    const { container } = render(<Markdown source={fence('', ts)} />);
+    expect(blockOf(container).querySelector('.hljs-keyword')).not.toBeNull();
+    expect(labelOf(container)).toBe('typescript · auto');
+  });
+
+  const log = Array.from(
+    { length: 500 },
+    (_, i) => `2026-11-15T20:00:00.123Z ERROR [mcp] request ${i} failed: ECONNRESET`,
+  ).join('\n');
+
+  it.each([
+    ['a one-liner', 'ok'],
+    ['prose', 'This is just a sentence someone pasted\ninto a code block for no reason at all.'],
+    ['log', log],
+    [
+      'stack trace',
+      "TypeError: Cannot read properties of undefined (reading 'id')\n    at call (file:///x.mjs:10:37)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+    ],
+    [
+      'Python traceback',
+      'Traceback (most recent call last):\n  File "main.py", line 3, in <module>\n    foo()\nNameError: name \'foo\' is not defined',
+    ],
+    ['invalid JSON', '{ "name": "locket",\n  oops }'],
+  ])('leaves an untagged %s plain', (_, body) => {
+    const { container } = render(<Markdown source={fence('', body)} />);
+    expect(blockOf(container).querySelector('span')).toBeNull();
+    expect(labelOf(container)).toBeNull();
+  });
+
+  it.each(['text', 'plain', 'foo'])('keeps a %s fence plain, with its tag as the label', (lang) => {
+    const { container } = render(<Markdown source={fence(lang, 'const x = 1;')} />);
+    expect(blockOf(container).querySelector('span')).toBeNull();
+    expect(labelOf(container)).toBe(lang);
+  });
+
+  it('never highlights inline code', () => {
+    const { container } = render(<Markdown source="Run `const x = 1;` first." />);
+    expect(container.querySelector('code')!.innerHTML).toBe('const x = 1;');
+    expect(labelOf(container)).toBeNull();
+  });
+});

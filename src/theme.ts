@@ -19,6 +19,54 @@ export const PAGE_BACKGROUND = { light: '#fafafa', dark: '#0e1014' } as const sa
 /** Max width of a page's content column (ticket page, settings), centred on wide windows. */
 export const PAGE_MAX_WIDTH = 920;
 
+/** Colours for highlighted code (highlight.js `hljs-*` classes), drawn on `action.hover`. */
+export interface SyntaxPalette {
+  keyword: string;
+  string: string;
+  number: string;
+  title: string;
+  attr: string;
+  tag: string;
+  comment: string;
+  addition: { bg: string; fg: string };
+  deletion: { bg: string; fg: string };
+}
+
+declare module '@mui/material/styles' {
+  interface Palette {
+    syntax: SyntaxPalette;
+  }
+  interface PaletteOptions {
+    syntax?: SyntaxPalette;
+  }
+}
+
+/** Based on GitHub's light and dark code colours, nudged to keep 4.5:1 on Locket's code background. */
+const SYNTAX: Record<ThemeMode, SyntaxPalette> = {
+  light: {
+    keyword: '#cf222e',
+    string: '#0a3069',
+    number: '#0550ae',
+    title: '#6f42c1',
+    attr: '#953800',
+    tag: '#116329',
+    comment: '#59636e',
+    addition: { bg: '#dafbe1', fg: '#116329' },
+    deletion: { bg: '#ffebe9', fg: '#82071e' },
+  },
+  dark: {
+    keyword: '#ff7b72',
+    string: '#a5d6ff',
+    number: '#79c0ff',
+    title: '#d2a8ff',
+    attr: '#ffa657',
+    tag: '#7ee787',
+    comment: '#8b949e',
+    addition: { bg: 'rgba(46,160,67,0.15)', fg: '#aff5b4' },
+    deletion: { bg: 'rgba(248,81,73,0.15)', fg: '#ffdcd7' },
+  },
+};
+
 const darkSurface = {
   page: PAGE_BACKGROUND.dark,
   paper: '#171a21',
@@ -50,6 +98,7 @@ export function getTheme(mode: ThemeMode): Theme {
         disabled: isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.38)',
       },
       divider: isDark ? darkSurface.border : 'rgba(0,0,0,0.08)',
+      syntax: SYNTAX[mode],
     },
     shape: { borderRadius: 8 },
     typography: {

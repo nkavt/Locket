@@ -1,8 +1,9 @@
 import { Box } from '@mui/material';
-import type { ComponentPropsWithoutRef } from 'react';
+import { memo, type ComponentPropsWithoutRef } from 'react';
 import ReactMarkdown, {
   defaultUrlTransform,
   type Components,
+  type ExtraProps,
   type UrlTransform,
 } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -10,6 +11,7 @@ import { AttachmentImage } from '@/features/attachments/AttachmentImage';
 import { useAttachmentScope } from '@/features/attachments/AttachmentScope';
 import { ATTACHMENT_SCHEME, attachmentNameOf } from '@/features/attachments/files';
 import { monoFontFamily } from '@/theme';
+import { rehypeCodeHighlight } from './rehypeCodeHighlight';
 
 interface MarkdownProps {
   source: string;
@@ -41,7 +43,26 @@ export function MarkdownImage({ src, alt, title }: ComponentPropsWithoutRef<'img
   );
 }
 
-const components: Components = { img: MarkdownImage };
+type PreProps = ComponentPropsWithoutRef<'pre'> &
+  ExtraProps & { 'data-language'?: string; 'data-auto'?: boolean | string };
+
+/** A code block with its language in the corner; a guessed language is marked as one. */
+function CodeBlock({ children, 'data-language': label, 'data-auto': auto }: PreProps) {
+  return (
+    <Box className="code-block" sx={{ position: 'relative' }}>
+      <pre>{children}</pre>
+      {label && (
+        <Box component="span" className="code-label" aria-hidden>
+          {auto != null ? `${label} · auto` : label}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+const components: Components = { img: MarkdownImage, pre: CodeBlock };
+const remarkPlugins = [remarkGfm];
+const rehypePlugins = [rehypeCodeHighlight];
 
 // The default transform strips data: and attachment: URLs; keep them for image sources only.
 // Bare file names are relative URLs, which it keeps anyway.
@@ -52,7 +73,12 @@ const urlTransform: UrlTransform = (url, key, node) =>
     ? url
     : defaultUrlTransform(url);
 
-export function Markdown({ source, fontSize = 14, imageMaxHeight = 480 }: MarkdownProps) {
+/** Memoised so typing elsewhere on the page doesn't re-parse and re-highlight the source. */
+export const Markdown = memo(function Markdown({
+  source,
+  fontSize = 14,
+  imageMaxHeight = 480,
+}: MarkdownProps) {
   return (
     <Box
       sx={{
@@ -85,6 +111,43 @@ export function Markdown({ source, fontSize = 14, imageMaxHeight = 480 }: Markdo
           overflowX: 'auto',
         },
         '& pre code': { background: 'none', padding: 0 },
+        '& .code-block': { margin: '1em 0' },
+        '& .code-block pre': { margin: 0 },
+        '& .code-label': {
+          position: 'absolute',
+          top: 4,
+          right: 10,
+          fontFamily: monoFontFamily,
+          fontSize: '0.72em',
+          color: 'text.secondary',
+          pointerEvents: 'none',
+          userSelect: 'none',
+        },
+        // highlight.js classes, coloured from the theme so they follow light / dark live.
+        '& .hljs-keyword, & .hljs-doctag, & .hljs-template-tag, & .hljs-template-variable, & .hljs-type, & .hljs-variable.language_, & .hljs-meta .hljs-keyword':
+          { color: 'syntax.keyword' },
+        '& .hljs-string, & .hljs-regexp, & .hljs-meta .hljs-string': { color: 'syntax.string' },
+        '& .hljs-number, & .hljs-literal, & .hljs-variable, & .hljs-operator, & .hljs-meta, & .hljs-selector-id, & .hljs-selector-class, & .hljs-selector-attr, & .hljs-section':
+          { color: 'syntax.number' },
+        '& .hljs-title': { color: 'syntax.title' },
+        '& .hljs-attr, & .hljs-attribute, & .hljs-property, & .hljs-built_in, & .hljs-symbol, & .hljs-bullet, & .hljs-params':
+          { color: 'syntax.attr' },
+        '& .hljs-name, & .hljs-selector-tag, & .hljs-selector-pseudo, & .hljs-quote': {
+          color: 'syntax.tag',
+        },
+        '& .hljs-comment, & .hljs-formula': { color: 'syntax.comment' },
+        '& .hljs-section, & .hljs-strong': { fontWeight: 600 },
+        '& .hljs-emphasis': { fontStyle: 'italic' },
+        // Diff lines: tint the whole line, not just its text.
+        '& .hljs-addition, & .hljs-deletion': { display: 'inline-block', minWidth: '100%' },
+        '& .hljs-addition': {
+          color: 'syntax.addition.fg',
+          bgcolor: 'syntax.addition.bg',
+        },
+        '& .hljs-deletion': {
+          color: 'syntax.deletion.fg',
+          bgcolor: 'syntax.deletion.bg',
+        },
         '& blockquote': {
           borderLeft: 3,
           borderColor: 'divider',
@@ -119,7 +182,8 @@ export function Markdown({ source, fontSize = 14, imageMaxHeight = 480 }: Markdo
       }}
     >
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={remarkPlugins}
+        rehypePlugins={rehypePlugins}
         components={components}
         urlTransform={urlTransform}
       >
@@ -127,4 +191,4 @@ export function Markdown({ source, fontSize = 14, imageMaxHeight = 480 }: Markdo
       </ReactMarkdown>
     </Box>
   );
-}
+});
