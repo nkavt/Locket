@@ -5,8 +5,12 @@ import { Icon } from '@/components/Icon';
 import { MaterialSymbol } from '@/components/MaterialSymbol';
 import { isMaterialSymbol, MATERIAL_SYMBOL_NAMES } from '@/data/projectIcons';
 import { MAX_ICON_RESULTS, searchIcons } from './iconSearch';
-import { OptionButton } from './OptionButton';
+import { OPTION_SQUARE_SIZE, OptionButton } from './OptionButton';
 import { TextInput } from './TextInput';
+
+/** Rows of icons the results area shows before it scrolls. */
+const VISIBLE_ROWS = 2;
+const GAP = 6;
 
 export interface IconPickerProps {
   /** The selected icon name. */
@@ -29,6 +33,7 @@ export const IconPicker = forwardRef<HTMLDivElement, IconPickerProps>(function I
   const [query, setQuery] = useState('');
   const matches = useMemo(() => searchIcons(query), [query]);
 
+  const tile = buttonSize ?? OPTION_SQUARE_SIZE;
   const searching = query.trim().length > 0;
   // Keep the current pick visible even when it isn't one of the suggestions.
   const shown = searching
@@ -55,11 +60,25 @@ export const IconPicker = forwardRef<HTMLDivElement, IconPickerProps>(function I
           },
         }}
       />
+      {/* A fixed height, whatever the number of results, so typing never resizes (and so
+          re-centres) the dialog around the picker. More rows scroll inside. */}
       <Box
         role="listbox"
         aria-label={t('projects.form.icon')}
-        sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, maxHeight: 156, overflowY: 'auto' }}
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignContent: 'flex-start',
+          gap: `${GAP}px`,
+          height: VISIBLE_ROWS * tile + (VISIBLE_ROWS - 1) * GAP,
+          overflowY: 'auto',
+        }}
       >
+        {searching && matches.length === 0 && (
+          <Box sx={{ fontSize: 12, color: 'text.secondary', alignSelf: 'center' }}>
+            {t('projects.form.iconNoMatch')}
+          </Box>
+        )}
         {shown.map((name) => (
           <OptionButton
             key={name}
@@ -77,15 +96,12 @@ export const IconPicker = forwardRef<HTMLDivElement, IconPickerProps>(function I
           </OptionButton>
         ))}
       </Box>
-      {searching && (
-        <Box sx={{ fontSize: 12, color: 'text.secondary' }}>
-          {matches.length === 0
-            ? t('projects.form.iconNoMatch')
-            : matches.length > MAX_ICON_RESULTS
-              ? t('projects.form.iconMore', { shown: MAX_ICON_RESULTS, count: matches.length })
-              : null}
-        </Box>
-      )}
+      {/* Always takes its line, even when empty, for the same reason. */}
+      <Box sx={{ fontSize: 12, lineHeight: '18px', minHeight: 18, color: 'text.secondary' }}>
+        {searching && matches.length > MAX_ICON_RESULTS
+          ? t('projects.form.iconMore', { shown: MAX_ICON_RESULTS, count: matches.length })
+          : null}
+      </Box>
     </Box>
   );
 });

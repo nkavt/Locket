@@ -9,8 +9,24 @@ const RELATIVE_STEPS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
   ['day', 86400],
 ];
 
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Parses an ISO string. A bare "YYYY-MM-DD" is read as local midnight of that
+ * day; `new Date()` would read it as UTC midnight, a day early west of UTC.
+ */
+function parseIso(iso: string): Date {
+  if (DATE_ONLY_RE.test(iso)) {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return new Date(iso);
+}
+
 export function relativeTime(iso: string | null | undefined): string {
   if (!iso) return '';
+  // Older tickets stored only the day; "17h ago" would be made up, so show the date.
+  if (DATE_ONLY_RE.test(iso)) return formatDate(iso);
   const d = new Date(iso);
   const diff = (Date.now() - d.getTime()) / 1000;
   if (diff < 60) return i18n.t('time.justNow');
@@ -25,11 +41,11 @@ export function relativeTime(iso: string | null | undefined): string {
 
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return '';
-  return new Date(iso).toLocaleDateString(lang(), { month: 'short', day: 'numeric' });
+  return parseIso(iso).toLocaleDateString(lang(), { month: 'short', day: 'numeric' });
 }
 
 export function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(lang());
+  return parseIso(iso).toLocaleString(lang());
 }
 
 export function labelColor(name: string): string {

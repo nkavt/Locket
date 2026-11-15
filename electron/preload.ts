@@ -16,6 +16,7 @@ import type {
 import type { ProjectSummary } from './services';
 import type { StorageUsage } from './attachments/store';
 import type { McpLogLine, McpStatus } from './mcp/http';
+import type { SystemInfo } from './system/about';
 
 interface PersistedSettings {
   mcpPort: number;
@@ -37,6 +38,9 @@ contextBridge.exposeInMainWorld('locket', {
   },
   user: {
     get: (): Promise<string> => ipcRenderer.invoke('user:get'),
+  },
+  system: {
+    info: (): Promise<SystemInfo> => ipcRenderer.invoke('system:info'),
   },
   data: {
     get: (): Promise<PersistedData | null> => ipcRenderer.invoke('data:get'),

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { avatarColor, formatDate, initials, labelColor, relativeTime } from './format';
 
 describe('relativeTime', () => {
@@ -19,6 +19,11 @@ describe('relativeTime', () => {
     expect(relativeTime('2026-05-01T12:00:00Z')).toMatch(/2026/);
   });
 
+  it('shows the day for legacy date-only values instead of counting from midnight UTC', () => {
+    expect(relativeTime('2026-06-01')).toBe('Jun 1');
+    expect(relativeTime('2026-05-30')).toBe('May 30');
+  });
+
   it('returns empty for missing input', () => {
     expect(relativeTime(null)).toBe('');
     expect(relativeTime(undefined)).toBe('');
@@ -28,6 +33,29 @@ describe('relativeTime', () => {
 describe('formatDate', () => {
   it('formats as short month and day', () => {
     expect(formatDate('2026-05-12')).toBe('May 12');
+  });
+  describe('west of UTC', () => {
+    // Parsed as UTC midnight, a bare date would land on the previous local day here.
+    beforeAll(() => {
+      vi.stubEnv('TZ', 'America/Los_Angeles');
+    });
+    afterAll(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it('reads a bare date as that local day', () => {
+      expect(new Date('2026-05-12').getDate()).toBe(11); // the zone really is west of UTC
+      expect(formatDate('2026-05-12')).toBe('May 12');
+    });
+
+    it('shows a legacy date-only "updated" as that day', () => {
+      vi.useFakeTimers({ now: new Date('2026-06-01T20:00:00Z') });
+      try {
+        expect(relativeTime('2026-06-01')).toBe('Jun 1');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
   it('returns empty for missing input', () => {
     expect(formatDate(null)).toBe('');

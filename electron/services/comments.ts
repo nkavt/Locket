@@ -2,7 +2,7 @@ import * as store from '../attachments/store';
 import { repos, withTransaction } from '../db';
 import type { NewAttachment, PersistedComment } from '../db/types';
 import { validateAttachments } from './attachments';
-import { NotFoundError, today } from './errors';
+import { NotFoundError, nowIso } from './errors';
 
 /** Millisecond timestamp, bumped past any existing id so two quick comments never collide. */
 export const nextCommentId = (existing: PersistedComment[]): number =>
@@ -25,7 +25,7 @@ export const addComment = (
       body,
     };
     await repos.comments.insert(em, ticketId, comment);
-    await repos.tickets.update(em, ticketId, { updated: today() });
+    await repos.tickets.update(em, ticketId, { updated: nowIso() });
     // Files last: if writing fails the transaction rolls back and the comment is not saved.
     comment.attachments = await store.write(ticketId, comment.id, valid);
     return comment;
@@ -37,6 +37,6 @@ export const deleteComment = (ticketId: string, commentId: number): Promise<void
     if (!(await repos.comments.remove(em, ticketId, commentId))) {
       throw new NotFoundError('Comment', String(commentId));
     }
-    await repos.tickets.update(em, ticketId, { updated: today() });
+    await repos.tickets.update(em, ticketId, { updated: nowIso() });
     await store.removeComment(ticketId, commentId);
   });

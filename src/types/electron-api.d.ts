@@ -1,4 +1,7 @@
 import type { Attachment, Comment, Project, Ticket } from '../data/types';
+import type { SystemInfo } from '../../electron/system/about';
+
+export type { SystemInfo };
 
 /** An image about to be saved. The renderer picks the name so markdown can reference it early. */
 export interface NewAttachment {
@@ -91,6 +94,10 @@ declare global {
       };
       user: {
         get: () => Promise<string>;
+      };
+      system: {
+        /** Real OS, version, CPU architecture and runtime versions, read in the main process. */
+        info: () => Promise<SystemInfo>;
       };
       data: {
         /** Whole workspace, or null on first run before anything was written. */

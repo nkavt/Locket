@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Sidebar } from './Sidebar';
 import { makeWorkspace, seedLocalWorkspace } from '@/test/fixtures';
 import { renderWithProviders, screen, userEvent, waitFor, within } from '@/test/render';
@@ -25,6 +25,17 @@ describe('Sidebar', () => {
       'page',
     );
     expect(screen.getByRole('link', { name: /Settings/ })).not.toHaveAttribute('aria-current');
+  });
+
+  it('scrolls the active project into view', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const second = data.projects[1];
+    renderWithProviders(<Sidebar />, { route: `/projects/${second.id}` });
+    const link = await screen.findByRole('link', { name: new RegExp(second.name) });
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' }));
+    expect(scrollIntoView.mock.contexts).toContain(link);
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
   });
 
   it('deletes a project from the context menu after confirming', async () => {

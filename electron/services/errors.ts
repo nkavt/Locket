@@ -12,4 +12,5 @@ export class ValidationError extends Error {
   }
 }
 
-export const today = (): string => new Date().toISOString().slice(0, 10);
+/** The current moment as a full ISO timestamp, e.g. "2026-11-13T17:50:12.345Z". */
+export const nowIso = (): string => new Date().toISOString();

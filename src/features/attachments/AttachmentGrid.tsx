@@ -23,6 +23,7 @@ interface AttachmentGridProps {
 const tileAction = {
   width: 22,
   height: 22,
+  padding: 0,
   background: 'rgba(0,0,0,0.7)',
   color: '#fff',
   '&:hover': { background: 'rgba(0,0,0,0.85)' },
@@ -123,8 +124,10 @@ export function AttachmentGrid({
                       item.usedIn ? t(`attachments.inUse.${item.usedIn}`) : t('attachments.remove')
                     }
                   >
-                    {/* A disabled button fires no events, so the tooltip hangs on a wrapper. */}
-                    <span>
+                    {/* A disabled button fires no events, so the tooltip hangs on a wrapper.
+                        It is a flex box so the button doesn't sit on a text line (baseline
+                        gap) and line up lower than the insert button. */}
+                    <Box component="span" sx={{ display: 'flex' }}>
                       <IconButton
                         size="small"
                         aria-label={t('attachments.removeNamed', { name: item.name })}
@@ -134,7 +137,7 @@ export function AttachmentGrid({
                       >
                         <Icon name="delete_outline" size={13} />
                       </IconButton>
-                    </span>
+                    </Box>
                   </Tooltip>
                 )}
               </Box>

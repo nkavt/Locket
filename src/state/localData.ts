@@ -15,7 +15,7 @@ import type {
   TicketPatch,
 } from '@/types/electron-api';
 
-const today = () => new Date().toISOString().slice(0, 10);
+const nowIso = () => new Date().toISOString();
 
 /** The same icon and colour rules as electron/services/projects.ts. */
 function checkLook(look: { icon?: string; color?: string }) {
@@ -82,7 +82,7 @@ export const withComment = (
       comments: exists
         ? t.comments.map((c) => (c.id === comment.id ? comment : c))
         : [...t.comments, comment],
-      updated: today(),
+      updated: nowIso(),
     };
   }),
 });
@@ -98,7 +98,7 @@ export const withTicketAttachments = (
     if (t.id !== ticketId) return t;
     const current = t.attachments ?? [];
     const fresh = added.filter((a) => !current.some((c) => c.name === a.name));
-    return { ...t, attachments: [...current, ...fresh], updated: today() };
+    return { ...t, attachments: [...current, ...fresh], updated: nowIso() };
   }),
 });
 
@@ -117,7 +117,7 @@ export const withoutAttachment = (
         ...t,
         attachments: drop(t.attachments),
         comments: t.comments.map((c) => ({ ...c, attachments: drop(c.attachments) })),
-        updated: today(),
+        updated: nowIso(),
       };
     }),
   };
@@ -164,7 +164,7 @@ export function createTicket(d: PersistedData, input: NewTicketInput) {
   const project = d.projects.find((p) => p.id === input.projectId);
   if (!project) throw new Error(`Project "${input.projectId}" not found`);
   const next = (d.counters[project.id] || 0) + 1;
-  const now = today();
+  const now = nowIso();
   const ticket: Ticket = {
     id: `${project.slug}-${next}`,
     projectId: project.id,
@@ -189,7 +189,7 @@ export function createTicket(d: PersistedData, input: NewTicketInput) {
 export function updateTicket(d: PersistedData, id: string, patch: TicketPatch) {
   const current = d.tickets.find((t) => t.id === id);
   if (!current) throw new Error(`Ticket "${id}" not found`);
-  const ticket = { ...current, ...patch, updated: today() };
+  const ticket = { ...current, ...patch, updated: nowIso() };
   return { data: withTicket(d, ticket), ticket };
 }
 

@@ -14,6 +14,8 @@ import { monoFontFamily } from '@/theme';
 interface MarkdownProps {
   source: string;
   fontSize?: number;
+  /** Tallest an inline image is drawn; click it to see it full size. */
+  imageMaxHeight?: number;
 }
 
 /**
@@ -50,7 +52,7 @@ const urlTransform: UrlTransform = (url, key, node) =>
     ? url
     : defaultUrlTransform(url);
 
-export function Markdown({ source, fontSize = 14 }: MarkdownProps) {
+export function Markdown({ source, fontSize = 14, imageMaxHeight = 480 }: MarkdownProps) {
   return (
     <Box
       sx={{
@@ -92,7 +94,13 @@ export function Markdown({ source, fontSize = 14 }: MarkdownProps) {
         },
         '& a': { color: 'primary.main', textDecoration: 'none' },
         '& a:hover': { textDecoration: 'underline' },
-        '& img': { maxWidth: '100%', borderRadius: '6px', margin: '0.5em 0' },
+        // Width and height stay auto, so a capped image keeps its aspect ratio.
+        '& img': {
+          maxWidth: '100%',
+          maxHeight: imageMaxHeight,
+          borderRadius: '6px',
+          margin: '0.5em 0',
+        },
         '& hr': {
           border: 'none',
           borderTop: '1px solid',
