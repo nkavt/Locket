@@ -166,8 +166,9 @@ export function McpServerCard() {
           onScroll={onLogScroll}
           data-testid="mcp-log"
           sx={{
-            background: '#0d1117',
-            color: '#c9d1d9',
+            // Inset panel: the page colour sits one step below the card in both themes.
+            bgcolor: 'background.default',
+            color: 'text.primary',
             border: 1,
             borderColor: 'divider',
             borderRadius: '6px',
@@ -181,14 +182,14 @@ export function McpServerCard() {
           }}
         >
           {!mcp.logsLoaded && mcp.available ? null : mcp.logs.length === 0 ? (
-            <Box sx={{ color: '#6e7681' }}>{t('settings.mcp.idle')}</Box>
+            <Box sx={{ color: 'text.secondary' }}>{t('settings.mcp.idle')}</Box>
           ) : (
             mcp.logs.map((l, i) => (
               <Box key={`${l.ts}-${i}`}>
-                <Box component="span" sx={{ color: '#6e7681' }}>
+                <Box component="span" sx={{ color: 'text.secondary' }}>
                   {formatTs(l.ts)}
                 </Box>
-                <Box component="span" sx={{ color: '#79c0ff', mx: 1 }}>
+                <Box component="span" sx={{ color: 'primary.main', mx: 1 }}>
                   ›
                 </Box>
                 <Box component="span">{l.line}</Box>
