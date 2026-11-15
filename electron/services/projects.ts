@@ -13,19 +13,30 @@ import {
   isMaterialSymbol,
   unknownIconMessage,
 } from '../projects/icons';
-import { NotFoundError, ValidationError } from './errors';
+import { isArchived, nextArchivedAt } from '../projects/archive';
+import { NotFoundError, nowIso, ValidationError } from './errors';
 
 export interface ProjectSummary extends PersistedProject {
   ticketCount: number;
 }
 
-export const listProjects = (): Promise<ProjectSummary[]> =>
+export interface ProjectListOptions {
+  /** Archived projects are left out unless this is set. */
+  includeArchived?: boolean;
+}
+
+/** Projects in creation order with ticket counts; active ones only unless asked otherwise. */
+export const listProjects = ({ includeArchived = false }: ProjectListOptions = {}): Promise<
+  ProjectSummary[]
+> =>
   withReader(async (em) => {
     const [projects, counts] = await Promise.all([
       repos.projects.findAll(em),
       repos.tickets.countByProject(em),
     ]);
-    return projects.map((p) => ({ ...p, ticketCount: counts[p.id] ?? 0 }));
+    return projects
+      .filter((p) => includeArchived || !isArchived(p))
+      .map((p) => ({ ...p, ticketCount: counts[p.id] ?? 0 }));
   });
 
 export const getProject = (id: string): Promise<PersistedProject> =>
@@ -61,19 +72,28 @@ export const createProject = (input: NewProjectInput): Promise<PersistedProject>
       icon: input.icon ?? DEFAULT_PROJECT_ICON,
       color: input.color ?? DEFAULT_PROJECT_COLOR,
       description: input.description ?? `# ${input.name}\n\n`,
+      archivedAt: null,
     };
     await repos.projects.insert(em, project);
     await repos.counters.set(em, project.id, 0);
     return project;
   });
 
-export const updateProject = (id: string, patch: ProjectPatch): Promise<PersistedProject> =>
+/** Edit a project, including archiving (`archived: true`) and unarchiving (`archived: false`). */
+export const updateProject = (
+  id: string,
+  { archived, ...fields }: ProjectPatch,
+): Promise<PersistedProject> =>
   withTransaction(async (em) => {
     const project = await repos.projects.findById(em, id);
     if (!project) throw new NotFoundError('Project', id);
-    checkLook(patch);
-    await repos.projects.update(em, id, patch);
-    return { ...project, ...patch };
+    checkLook(fields);
+    const changes =
+      archived === undefined
+        ? fields
+        : { ...fields, archivedAt: nextArchivedAt(project, archived, nowIso()) };
+    await repos.projects.update(em, id, changes);
+    return { ...project, ...changes };
   });
 
 /** Delete a project and every ticket (and comment) in it. */

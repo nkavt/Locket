@@ -9,6 +9,7 @@ const toModel = (e: ProjectEntity): PersistedProject => ({
   icon: e.icon,
   color: e.color,
   description: e.description,
+  archivedAt: e.archivedAt ?? null,
 });
 
 /** All projects in creation order. */
@@ -28,15 +29,24 @@ export const findBySlug = async (
   return e && toModel(e);
 };
 
+const toRow = (p: PersistedProject): ProjectEntity => ({ ...p, archivedAt: p.archivedAt ?? null });
+
 export const insert = async (em: EntityManager, p: PersistedProject): Promise<void> => {
-  await em.insert(ProjectEntity, p);
+  await em.insert(ProjectEntity, toRow(p));
 };
 
 export const insertMany = async (em: EntityManager, ps: PersistedProject[]): Promise<void> => {
-  if (ps.length) await em.insert(ProjectEntity, ps);
+  if (ps.length) await em.insert(ProjectEntity, ps.map(toRow));
 };
 
-export const update = async (em: EntityManager, id: string, patch: ProjectPatch): Promise<void> => {
+/** Column changes: the editable fields plus `archivedAt` (the service decides its value). */
+export type ProjectChanges = Omit<ProjectPatch, 'archived'> & { archivedAt?: string | null };
+
+export const update = async (
+  em: EntityManager,
+  id: string,
+  patch: ProjectChanges,
+): Promise<void> => {
   if (Object.keys(patch).length) await em.update(ProjectEntity, { id }, patch);
 };
 

@@ -5,12 +5,13 @@ import { Navigate, useNavigate } from 'react-router';
 import { EmptyState } from '@/components/EmptyState';
 import { Icon } from '@/components/Icon';
 import { NewProjectDialog } from '@/features/projects/NewProjectDialog';
-import { useProjects } from '@/state/useAppState';
+import { useProjectGroups } from '@/state/useAppState';
 import { projectPath } from '@/router';
 
-/** "/" → first project, or an empty state when there are none. */
+/** "/" → first active project (else the latest archived one), or an empty state when there are none. */
 export function RootRedirect() {
-  const projects = useProjects();
+  const { active, archived } = useProjectGroups();
+  const projects = active.length ? active : archived;
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [dialogOpen, setDialogOpen] = useState(false);

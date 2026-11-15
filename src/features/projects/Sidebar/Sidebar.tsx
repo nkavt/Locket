@@ -1,31 +1,36 @@
 import { Avatar, Box, IconButton, Tooltip, Typography } from '@mui/material';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMatch, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { SidebarRow } from './components/SidebarRow';
 import { ProjectMenu } from './components/ProjectMenu';
+import { ProjectRow } from './components/ProjectRow';
+import { ArchivedSection } from './components/ArchivedSection';
 import { scrollFadeMask, useScrollEdges } from './useScrollEdges';
 import { NewProjectDialog } from '../NewProjectDialog';
 import { EditProjectDialog } from '../EditProjectDialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Icon } from '@/components/Icon';
 import { AppMark } from '@/components/AppMark';
-import { ProjectAvatar } from '@/components/ProjectAvatar';
 import { SectionLabel } from '@/components/SectionLabel';
-import { TruncatedText } from '@/components/TruncatedText';
 import { APP_VERSION } from '@/data/constants';
+import { isArchived } from '@/data/projectArchive';
 import { projectPath, settingsPath } from '@/router';
-import { useAppState, useProjects, useTicketCounts } from '@/state/useAppState';
+import { useAppState, useProjectGroups, useTicketCounts } from '@/state/useAppState';
 import { useCurrentUser } from '@/state/useCurrentUser';
+import { useStoredFlag } from '@/state/useStoredFlag';
 import { useThemeMode } from '@/state/useThemeMode';
 import { monoFontFamily } from '@/theme';
 import { avatarColor, initials } from '@/utils/format';
 import type { Project } from '@/data/types';
 
+/** Whether the Archived section is expanded; collapsed until the user opens it. */
+export const ARCHIVED_OPEN_KEY = 'locket-sidebar-archived-open-v1';
+
 export function Sidebar() {
-  const projects = useProjects();
+  const { active: activeProjects, archived: archivedProjects } = useProjectGroups();
   const ticketCounts = useTicketCounts();
-  const { deleteProject } = useAppState();
+  const { deleteProject, updateProject } = useAppState();
   const currentUser = useCurrentUser();
   const { mode, toggle: toggleTheme } = useThemeMode();
   const navigate = useNavigate();
@@ -35,16 +40,39 @@ export function Sidebar() {
   const activeProjectId = projectMatch?.params.projectId;
   const settingsActive = !!useMatch('/settings');
 
-  const [menu, setMenu] = useState<{ project: Project; anchor: HTMLElement } | null>(null);
+  // The project stays set while the menu closes, so its labels don't flip mid-animation.
+  const [menu, setMenu] = useState<{ project: Project; anchor: HTMLElement | null } | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState<Project | null>(null);
+  const [archivedOpen, setArchivedOpen] = useStoredFlag(ARCHIVED_OPEN_KEY, false);
+
+  // Landing on an archived project (a copied link, a reload, archiving the open project)
+  // opens its section so the selected row is visible; SidebarRow then scrolls it into view.
+  const viewingArchived = archivedProjects.some((p) => p.id === activeProjectId);
+  useEffect(() => {
+    if (viewingArchived) setArchivedOpen(true);
+  }, [viewingArchived, activeProjectId, setArchivedOpen]);
+
   const {
     ref: listRef,
     onScroll: onListScroll,
     top: fadeTop,
     bottom: fadeBottom,
-  } = useScrollEdges<HTMLDivElement>(projects.length);
+  } = useScrollEdges<HTMLDivElement>(
+    `${activeProjects.length}/${archivedProjects.length}/${archivedOpen}`,
+  );
+
+  const renderRow = (p: Project) => (
+    <ProjectRow
+      key={p.id}
+      project={p}
+      ticketCount={ticketCounts[p.id] || 0}
+      active={p.id === activeProjectId}
+      dimmed={isArchived(p)}
+      onContextMenu={(anchor) => setMenu({ project: p, anchor })}
+    />
+  );
 
   const confirmDelete = () => {
     if (!deleting) return;
@@ -124,20 +152,16 @@ export function Sidebar() {
             maskImage: scrollFadeMask({ top: fadeTop, bottom: fadeBottom }),
           }}
         >
-          {projects.map((p) => (
-            <SidebarRow
-              key={p.id}
-              to={projectPath(p.id)}
-              active={p.id === activeProjectId}
-              onContextMenu={(anchor) => setMenu({ project: p, anchor })}
+          {activeProjects.map(renderRow)}
+          {archivedProjects.length > 0 && (
+            <ArchivedSection
+              count={archivedProjects.length}
+              open={archivedOpen}
+              onToggle={() => setArchivedOpen(!archivedOpen)}
             >
-              <ProjectAvatar project={p} />
-              <TruncatedText sx={{ flex: 1 }}>{p.name}</TruncatedText>
-              <Box sx={{ fontSize: 11, color: 'text.disabled', fontFamily: monoFontFamily }}>
-                {ticketCounts[p.id] || 0}
-              </Box>
-            </SidebarRow>
-          ))}
+              {archivedProjects.map(renderRow)}
+            </ArchivedSection>
+          )}
         </Box>
 
         <Box sx={{ padding: '18px 8px 0' }}>
@@ -205,8 +229,12 @@ export function Sidebar() {
 
       <ProjectMenu
         anchor={menu?.anchor ?? null}
-        onClose={() => setMenu(null)}
+        archived={!!menu && isArchived(menu.project)}
+        onClose={() => setMenu((m) => m && { ...m, anchor: null })}
         onRename={() => menu && setEditing(menu.project)}
+        onToggleArchived={() =>
+          menu && void updateProject(menu.project.id, { archived: !isArchived(menu.project) })
+        }
         onDelete={() => menu && setDeleting(menu.project)}
       />
       <NewProjectDialog

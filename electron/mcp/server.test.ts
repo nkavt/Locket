@@ -113,6 +113,57 @@ describe('MCP server', () => {
     ]);
   });
 
+  it('hides archived projects and their tickets unless asked, and refuses tickets in them', async () => {
+    const { client } = await connect();
+    const archived = parse(
+      await client.callTool({ name: 'update_project', arguments: { id: 'p2', archived: true } }),
+    );
+    expect(archived).toMatchObject({ id: 'p2', archived: true, archivedAt: expect.any(String) });
+
+    const active = parse(await client.callTool({ name: 'list_projects', arguments: {} }));
+    expect(active).toEqual([
+      expect.objectContaining({ id: 'p1', archived: false, archivedAt: null }),
+    ]);
+    const all = parse(
+      await client.callTool({ name: 'list_projects', arguments: { includeArchived: true } }),
+    );
+    expect(all.map((p: { id: string; archived: boolean }) => [p.id, p.archived])).toEqual([
+      ['p1', false],
+      ['p2', true],
+    ]);
+
+    const ids = (r: ToolResult) => parse(r).map((t: { id: string }) => t.id);
+    expect(ids(await client.callTool({ name: 'list_tickets', arguments: {} }))).toEqual(['one-1']);
+    expect(
+      ids(await client.callTool({ name: 'list_tickets', arguments: { includeArchived: true } })),
+    ).toEqual(['one-1', 'two-1']);
+
+    const refused = await client.callTool({
+      name: 'create_ticket',
+      arguments: { projectId: 'p2', title: 'Nope' },
+    });
+    expect(refused.isError).toBe(true);
+    expect(text(refused)).toBe('Project "Two" is archived. Unarchive it first.');
+    const comment = await client.callTool({
+      name: 'add_comment',
+      arguments: { ticketId: 'two-1', body: 'still fine' },
+    });
+    expect(comment.isError).toBeFalsy();
+
+    const resource = JSON.parse(
+      resourceText(await client.readResource({ uri: 'locket://projects' })),
+    );
+    expect(resource.map((p: { id: string; archived: boolean }) => [p.id, p.archived])).toEqual([
+      ['p1', false],
+      ['p2', true],
+    ]);
+
+    const restored = parse(
+      await client.callTool({ name: 'update_project', arguments: { id: 'p2', archived: false } }),
+    );
+    expect(restored).toMatchObject({ archived: false, archivedAt: null });
+  });
+
   it('filters tickets by project, status, label and query', async () => {
     const { client } = await connect();
     const ids = async (args: Record<string, unknown>) =>

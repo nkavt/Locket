@@ -6,6 +6,7 @@ import {
   isMaterialSymbol,
   unknownIconMessage,
 } from '@/data/projectIcons';
+import { archivedProjectMessage, isArchived, nextArchivedAt } from '@/data/projectArchive';
 import type {
   NewAttachment,
   NewProjectInput,
@@ -148,21 +149,24 @@ export function createProject(d: PersistedData, input: NewProjectInput) {
     icon: input.icon ?? DEFAULT_PROJECT_ICON,
     color: input.color ?? DEFAULT_PROJECT_COLOR,
     description: input.description ?? `# ${input.name}\n\n`,
+    archivedAt: null,
   };
   return { data: withProject(d, project), project };
 }
 
-export function updateProject(d: PersistedData, id: string, patch: ProjectPatch) {
+export function updateProject(d: PersistedData, id: string, { archived, ...fields }: ProjectPatch) {
   const current = d.projects.find((p) => p.id === id);
   if (!current) throw new Error(`Project "${id}" not found`);
-  checkLook(patch);
-  const project = { ...current, ...patch };
+  checkLook(fields);
+  const project: Project = { ...current, ...fields };
+  if (archived !== undefined) project.archivedAt = nextArchivedAt(current, archived, nowIso());
   return { data: withProject(d, project), project };
 }
 
 export function createTicket(d: PersistedData, input: NewTicketInput) {
   const project = d.projects.find((p) => p.id === input.projectId);
   if (!project) throw new Error(`Project "${input.projectId}" not found`);
+  if (isArchived(project)) throw new Error(archivedProjectMessage(project));
   const next = (d.counters[project.id] || 0) + 1;
   const now = nowIso();
   const ticket: Ticket = {

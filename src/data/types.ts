@@ -8,6 +8,8 @@ export interface Project {
   icon: string;
   color: string;
   description: string;
+  /** ISO time the project was archived; null or absent while it is active. */
+  archivedAt?: string | null;
 }
 
 /** Image metadata. The bytes are fetched on demand (see `useAttachmentUrl`). */

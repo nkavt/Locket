@@ -118,6 +118,43 @@ describe('tickets service', () => {
       expect(matchesFilter(first, { projectId: 'p1', status: 'done' })).toBe(false);
     });
   });
+
+  describe('in archived projects', () => {
+    const archive = async (id: string) => {
+      const { updateProject } = await import('./projects');
+      await updateProject(id, { archived: true });
+    };
+
+    it('refuses new tickets with a clear message', async () => {
+      await archive('p1');
+      await expect(createTicket({ projectId: 'p1', title: 'x', author: 'me' })).rejects.toThrow(
+        'Project "One" is archived. Unarchive it first.',
+      );
+      expect((await readSnapshot()).counters.p1).toBe(0);
+    });
+
+    it('still lets existing tickets be updated and commented on', async () => {
+      await createTicket({ projectId: 'p1', title: 'Loose end', author: 'me' });
+      await archive('p1');
+      expect(await updateTicket('one-1', { status: 'done' })).toMatchObject({ status: 'done' });
+      const { addComment } = await import('./comments');
+      await addComment('one-1', 'closing', 'me');
+      expect((await getTicket('one-1')).comments).toHaveLength(1);
+    });
+
+    it('leaves their tickets out of listings across projects unless asked', async () => {
+      await createTicket({ projectId: 'p1', title: 'A', author: 'me' });
+      await createTicket({ projectId: 'p2', title: 'B', author: 'me' });
+      await archive('p1');
+      expect((await listTickets()).map((t) => t.id)).toEqual(['two-1']);
+      expect((await listTickets({ query: 'a' })).map((t) => t.id)).toEqual([]);
+      expect((await listTickets({ includeArchived: true })).map((t) => t.id)).toEqual([
+        'one-1',
+        'two-1',
+      ]);
+      expect((await listTickets({ projectId: 'p1' })).map((t) => t.id)).toEqual(['one-1']);
+    });
+  });
 });
 
 describe('tickets service with date-only timestamps from older versions', () => {

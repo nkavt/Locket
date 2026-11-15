@@ -65,6 +65,14 @@
     "newProject": "New project",
     "editProject": "Edit project",
     "deleteProject": "Delete project",
+    "archive": {
+      "archive": "Archive project",
+      "unarchiveProject": "Unarchive project",
+      "unarchive": "Unarchive",
+      "section": "Archived · {{count}}",
+      "sectionLabel": "Archived projects",
+      "banner": "This project is archived."
+    },
     "empty": {
       "title": "No projects yet",
       "subtitle": "Create your first project to get started."

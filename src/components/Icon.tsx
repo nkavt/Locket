@@ -19,6 +19,7 @@ import DeleteOutline from '@mui/icons-material/DeleteOutlineOutlined';
 import LinkIcon from '@mui/icons-material/Link';
 import ContentCopy from '@mui/icons-material/ContentCopy';
 import Archive from '@mui/icons-material/Archive';
+import Unarchive from '@mui/icons-material/Unarchive';
 import Settings from '@mui/icons-material/Settings';
 import FolderOpen from '@mui/icons-material/FolderOpen';
 import FolderOff from '@mui/icons-material/FolderOff';
@@ -77,6 +78,7 @@ const ICON_MAP: Record<string, ComponentType<SvgIconProps>> = {
   link: LinkIcon,
   content_copy: ContentCopy,
   archive: Archive,
+  unarchive: Unarchive,
   settings: Settings,
   folder_open: FolderOpen,
   folder_off: FolderOff,

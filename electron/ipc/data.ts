@@ -28,7 +28,9 @@ export function registerDataIpc(notify: (data: PersistedData) => void): void {
     changed(await services.replaceSnapshot(data)),
   );
 
-  ipcMain.handle('projects:list', () => services.listProjects());
+  ipcMain.handle('projects:list', (_e, options?: services.ProjectListOptions) =>
+    services.listProjects(options),
+  );
   ipcMain.handle('projects:create', async (_e, input: NewProjectInput) =>
     changed(await services.createProject(input)),
   );

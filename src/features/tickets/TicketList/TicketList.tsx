@@ -7,7 +7,9 @@ import { TicketFilters } from './components/TicketFilters';
 import { TicketGroup } from './components/TicketGroup';
 import { NewTicketDialog } from '../NewTicketDialog';
 import { EMPTY_FILTERS, filterTickets, type TicketFilterState } from '../utils';
+import { ArchivedBanner } from '@/features/projects/ArchivedBanner';
 import { EmptyState } from '@/components/EmptyState';
+import { isArchived } from '@/data/projectArchive';
 import { Icon } from '@/components/Icon';
 import { STATUSES } from '@/data/constants';
 import { ticketPath } from '@/router';
@@ -33,11 +35,15 @@ export function TicketList({ project }: TicketListProps) {
     return g;
   }, [filtered]);
 
+  // Archived projects take no new tickets; existing ones stay editable to close loose ends.
+  const archived = isArchived(project);
+
   const newTicketButton = (variant: 'contained' | 'outlined') => (
     <Button
       variant={variant}
       startIcon={<Icon name="add" size={18} />}
       onClick={() => setNewOpen(true)}
+      disabled={archived}
     >
       {t('tickets.newTicket')}
     </Button>
@@ -46,6 +52,7 @@ export function TicketList({ project }: TicketListProps) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <TicketListHeader project={project} tickets={tickets} action={newTicketButton('contained')} />
+      {archived && <ArchivedBanner project={project} />}
       <TicketFilters value={filters} onChange={setFilters} />
 
       <Box sx={{ flex: 1, overflowY: 'auto', padding: '12px 16px 40px' }}>
