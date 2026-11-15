@@ -11,6 +11,8 @@ import {
   TextareaInput,
 } from '@/components/ui';
 import { PROJECT_COLORS, PROJECT_ICONS } from '@/data/constants';
+import { DEFAULT_WORKFLOW_ID } from '@/data/workflows';
+import { WorkflowSelect } from '@/features/workflows/WorkflowSelect';
 import { useAppState, useProjects } from '@/state/useAppState';
 import { deriveSlug } from './utils';
 import type { Project } from '@/data/types';
@@ -28,6 +30,7 @@ interface ProjectFormValues {
   icon: string;
   color: string;
   description: string;
+  workflowId: string;
 }
 
 const DEFAULTS: ProjectFormValues = {
@@ -36,6 +39,7 @@ const DEFAULTS: ProjectFormValues = {
   icon: PROJECT_ICONS[0],
   color: PROJECT_COLORS[0],
   description: '',
+  workflowId: DEFAULT_WORKFLOW_ID,
 };
 
 export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogProps) {
@@ -84,6 +88,7 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
       icon: v.icon,
       color: v.color,
       description: v.description || undefined,
+      workflowId: v.workflowId,
     });
     onClose();
     onCreated?.(project);
@@ -154,6 +159,14 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
             )}
           />
         </Box>
+
+        <Controller
+          name="workflowId"
+          control={control}
+          render={({ field }) => (
+            <WorkflowSelect ref={field.ref} value={field.value} onChange={field.onChange} />
+          )}
+        />
 
         <TextareaInput
           label={t('projects.form.descriptionOptional')}

@@ -5,16 +5,18 @@ import { Icon } from '@/components/Icon';
 import { SelectInput } from '@/components/ui';
 import { useTicketOptions } from '../../useTicketOptions';
 import { formatDate, relativeTime } from '@/utils/format';
-import type { PriorityValue, StatusValue, Ticket } from '@/data/types';
+import type { PriorityValue, StatusValue, Ticket, Workflow } from '@/data/types';
 
 interface TicketMetaRowProps {
   ticket: Ticket;
+  /** The project's workflow: its statuses are the ones the picker offers. */
+  workflow: Workflow;
   onUpdate: (patch: Partial<Ticket>) => void;
 }
 
-export function TicketMetaRow({ ticket, onUpdate }: TicketMetaRowProps) {
+export function TicketMetaRow({ ticket, workflow, onUpdate }: TicketMetaRowProps) {
   const { t } = useTranslation();
-  const { statuses, priorities } = useTicketOptions();
+  const { statuses, priorities } = useTicketOptions(workflow);
   return (
     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', marginTop: 1.75 }}>
       <SelectInput<StatusValue>

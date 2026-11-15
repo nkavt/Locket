@@ -29,3 +29,13 @@ export {
   matchesFilter,
   updateTicket,
 } from './tickets';
+export {
+  createWorkflow,
+  deleteWorkflow,
+  getWorkflow,
+  listWorkflows,
+  statusOfTicket,
+  updateWorkflow,
+  type NewWorkflowRequest,
+  type WorkflowSummary,
+} from './workflows';

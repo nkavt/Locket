@@ -48,11 +48,6 @@
   "time": {
     "justNow": "just now"
   },
-  "status": {
-    "todo": "To Do",
-    "in_progress": "In Progress",
-    "done": "Done"
-  },
   "priority": {
     "low": "Low",
     "medium": "Medium",
@@ -90,7 +85,18 @@
       "color": "Color",
       "description": "Description (markdown)",
       "descriptionOptional": "Description (markdown, optional)",
-      "create": "Create project"
+      "create": "Create project",
+      "workflow": "Workflow",
+      "workflowHint": "Decides which statuses tickets can have. Manage workflows in Settings."
+    },
+    "switchWorkflow": {
+      "title": "Switch to {{workflow}}",
+      "message": "Tickets keep their place by choosing a new status for each current one. Matching categories are picked for you.",
+      "from": "Now",
+      "to": "Becomes",
+      "tickets_one": "{{count}} ticket",
+      "tickets_other": "{{count}} tickets",
+      "confirm": "Switch and save"
     }
   },
   "tickets": {
@@ -100,6 +106,7 @@
     "ticketCount_one": "{{count}} ticket",
     "ticketCount_other": "{{count}} tickets",
     "doneCount": "{{count}} done",
+    "cancelledCount": "{{count}} cancelled",
     "empty": {
       "none": "No tickets yet",
       "noMatch": "No tickets match your filters"
@@ -171,6 +178,72 @@
       "unavailable": "The MCP server runs inside the desktop app. Open Locket in Electron to start it.",
       "startFailed": "Could not start the MCP server: {{message}}",
       "connectHint": "Point an MCP client at this URL (Streamable HTTP)."
+    },
+    "workflows": {
+      "title": "Workflows",
+      "subtitle": "Sets of statuses that projects share. Changing one updates every project that uses it; duplicate it to make a version just for some projects.",
+      "new": "New workflow",
+      "newName": "New workflow",
+      "copyName": "{{name}} copy",
+      "statuses_one": "{{count}} status",
+      "statuses_other": "{{count}} statuses",
+      "unused": "Not used by any project",
+      "usedBy_one": "Used by {{names}}",
+      "usedBy_other": "Used by {{names}}",
+      "edit": "Edit workflow",
+      "duplicate": "Duplicate",
+      "duplicated": "Workflow duplicated",
+      "delete": "Delete workflow",
+      "deleteDefault": "The default workflow is kept for new projects",
+      "deleteInUse": "In use: move its projects to another workflow first",
+      "deleteConfirm": {
+        "title": "Delete workflow?",
+        "message": "\"{{name}}\" will be removed. No project uses it."
+      },
+      "deleted": "Workflow deleted",
+      "saved": "Workflow saved",
+      "editor": {
+        "titleNew": "New workflow",
+        "titleEdit": "Edit workflow",
+        "name": "Workflow name",
+        "statuses": "Statuses",
+        "statusesHint": "Drag to reorder. The board shows them in this order; new tickets start in the first \"To do\" status.",
+        "statusName": "Status name",
+        "category": "Category",
+        "look": "Icon and colour of {{name}}",
+        "icon": "Icon",
+        "color": "Color",
+        "drag": "Drag to reorder {{name}}",
+        "moveUp": "Move {{name}} up",
+        "moveDown": "Move {{name}} down",
+        "remove": "Delete {{name}}",
+        "add": "Add status",
+        "newStatus": "New status",
+        "tickets_one": "{{count}} ticket",
+        "tickets_other": "{{count}} tickets",
+        "sharedWarning_one": "Changes apply to {{count}} project.",
+        "sharedWarning_other": "Changes apply to all {{count}} projects using it.",
+        "duplicateName": "Two statuses are called \"{{name}}\"",
+        "blankName": "Every status needs a name",
+        "create": "Create workflow"
+      },
+      "moveTickets": {
+        "title": "Move tickets first",
+        "message": "These statuses still have tickets. Choose where they go.",
+        "confirm": "Move and save"
+      },
+      "categories": {
+        "todo": "To do",
+        "active": "Active",
+        "done": "Done",
+        "cancelled": "Cancelled"
+      },
+      "categoryHints": {
+        "todo": "Not started",
+        "active": "Being worked on",
+        "done": "Counts as done",
+        "cancelled": "Closed, not counted as done"
+      }
     },
     "storage": {
       "title": "Storage",

@@ -1,4 +1,5 @@
 import type { Project, Ticket } from '@/data/types';
+import { defaultWorkflow } from '@/data/workflows';
 import type { PersistedData } from '@/types/electron-api';
 
 export function makeProject(overrides: Partial<Project> = {}): Project {
@@ -9,6 +10,7 @@ export function makeProject(overrides: Partial<Project> = {}): Project {
     icon: 'rocket_launch',
     color: '#1976d2',
     description: '# Test',
+    workflowId: 'default',
     ...overrides,
   };
 }
@@ -36,6 +38,7 @@ export function makeWorkspace(): PersistedData {
   const alpha = makeProject({ id: 'alpha', name: 'Alpha', slug: 'alp' });
   const beta = makeProject({ id: 'beta', name: 'Beta', slug: 'bet', icon: 'language' });
   return {
+    workflows: [defaultWorkflow()],
     projects: [alpha, beta],
     tickets: [
       makeTicket({ id: 'alp-1', projectId: 'alpha', title: 'First alpha ticket' }),
@@ -47,7 +50,11 @@ export function makeWorkspace(): PersistedData {
 }
 
 /** Put a workspace into localStorage so the browser backend loads it on hydrate. */
-export function seedLocalWorkspace(data: PersistedData = makeWorkspace()): PersistedData {
+export function seedLocalWorkspace(
+  data: Omit<PersistedData, 'workflows'> & {
+    workflows?: PersistedData['workflows'];
+  } = makeWorkspace(),
+) {
   localStorage.setItem('locket-app-state-v1', JSON.stringify(data));
   return data;
 }

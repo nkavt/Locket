@@ -1,10 +1,16 @@
+import type { EntityManager } from 'typeorm';
 import * as store from '../attachments/store';
 import { repos, withReader, withTransaction } from '../db';
 import type { NewTicketInput, PersistedTicket, TicketFilter, TicketPatch } from '../db/types';
+import { defaultStatus, matchStatus, resolveStatus } from '../workflows/rules';
 import { validateAttachments } from './attachments';
-import { NotFoundError, nowIso } from './errors';
+import { NotFoundError, nowIso, ValidationError } from './errors';
+import { workflowOfProject } from './workflows';
 
-/** Pure predicate for the parts of the filter that are not plain column matches. */
+/**
+ * Pure predicate for the parts of the filter that are not plain column matches. `status`
+ * here is a status id; listTickets turns names into ids first.
+ */
 export const matchesFilter = (t: PersistedTicket, filter: TicketFilter): boolean => {
   const q = filter.query?.trim().toLowerCase();
   return (
@@ -19,10 +25,47 @@ export const matchesFilter = (t: PersistedTicket, filter: TicketFilter): boolean
   );
 };
 
+/**
+ * Status ids a filter value stands for. With a project it must be one of that project's
+ * statuses; without one, it matches every workflow's status with that id or name.
+ */
+const statusIdsFor = async (
+  em: EntityManager,
+  status: string,
+  projectId: string | undefined,
+): Promise<Set<string>> => {
+  if (projectId) {
+    const project = await repos.projects.findById(em, projectId);
+    if (!project) throw new NotFoundError('Project', projectId);
+    return new Set([resolveStatus(await workflowOfProject(em, project), status).id]);
+  }
+  const workflows = await repos.workflows.findAll(em);
+  const ids = new Set(
+    workflows.flatMap((w) => {
+      const s = matchStatus(w, status);
+      return s ? [s.id] : [];
+    }),
+  );
+  if (!ids.size) {
+    const known = [...new Set(workflows.flatMap((w) => w.statuses.map((s) => s.id)))];
+    throw new ValidationError(`Unknown status "${status}". Known statuses: ${known.join(', ')}`);
+  }
+  return ids;
+};
+
 export const listTickets = (filter: TicketFilter = {}): Promise<PersistedTicket[]> =>
   withReader(async (em) => {
-    const rows = await repos.tickets.findAll(em, filter);
-    return filter.label || filter.query ? rows.filter((t) => matchesFilter(t, filter)) : rows;
+    const statuses = filter.status ? await statusIdsFor(em, filter.status, filter.projectId) : null;
+    const rows = await repos.tickets.findAll(em, {
+      projectId: filter.projectId,
+      priority: filter.priority,
+    });
+    const rest = { ...filter, status: undefined };
+    return rows.filter(
+      (t) =>
+        (!statuses || statuses.has(t.status)) &&
+        (!(filter.label || filter.query) || matchesFilter(t, rest)),
+    );
   });
 
 export const getTicket = (id: string): Promise<PersistedTicket> =>
@@ -36,6 +79,8 @@ export const createTicket = (input: NewTicketInput): Promise<PersistedTicket> =>
   withTransaction(async (em) => {
     const project = await repos.projects.findById(em, input.projectId);
     if (!project) throw new NotFoundError('Project', input.projectId);
+    const workflow = await workflowOfProject(em, project);
+    const status = input.status ? resolveStatus(workflow, input.status) : defaultStatus(workflow);
     const files = await validateAttachments(null, input.attachments);
     const next = await repos.counters.next(em, project.id);
     const now = nowIso();
@@ -44,7 +89,7 @@ export const createTicket = (input: NewTicketInput): Promise<PersistedTicket> =>
       projectId: project.id,
       title: input.title,
       description: input.description ?? '',
-      status: input.status ?? 'todo',
+      status: status.id,
       priority: input.priority ?? 'medium',
       labels: input.labels ?? [],
       due: input.due ?? null,
@@ -64,6 +109,11 @@ export const updateTicket = (id: string, patch: TicketPatch): Promise<PersistedT
     const ticket = await repos.tickets.findById(em, id);
     if (!ticket) throw new NotFoundError('Ticket', id);
     const changes = { ...patch, updated: nowIso() };
+    if (patch.status !== undefined) {
+      const project = await repos.projects.findById(em, ticket.projectId);
+      if (!project) throw new NotFoundError('Project', ticket.projectId);
+      changes.status = resolveStatus(await workflowOfProject(em, project), patch.status).id;
+    }
     await repos.tickets.update(em, id, changes);
     return { ...ticket, ...changes };
   });

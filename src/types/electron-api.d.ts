@@ -1,4 +1,5 @@
 import type { Attachment, Comment, Project, Ticket } from '../data/types';
+import type { NewWorkflowInput, Workflow, WorkflowPatch } from '../data/workflows';
 import type { SystemInfo } from '../../electron/system/about';
 
 export type { SystemInfo };
@@ -29,6 +30,7 @@ export interface PersistedSettings {
 }
 
 export interface PersistedData {
+  workflows: Workflow[];
   projects: Project[];
   tickets: Ticket[];
   counters: Record<string, number>;
@@ -40,9 +42,27 @@ export interface NewProjectInput {
   icon?: string;
   color?: string;
   description?: string;
+  workflowId?: string;
 }
 
-export type ProjectPatch = Partial<Pick<Project, 'name' | 'icon' | 'color' | 'description'>>;
+export type ProjectPatch = Partial<
+  Pick<Project, 'name' | 'icon' | 'color' | 'description' | 'workflowId'>
+>;
+
+export interface ProjectUpdateOptions {
+  /** On a workflow switch: old status id → new status id. Missing ones map by category. */
+  statusMap?: Record<string, string>;
+}
+
+export interface NewWorkflowRequest extends NewWorkflowInput {
+  /** Copy this workflow's statuses (with new ids). */
+  copyFrom?: string;
+}
+
+export interface WorkflowSummary extends Workflow {
+  projectIds: string[];
+  ticketCounts: Record<string, number>;
+}
 
 export interface ProjectSummary extends Project {
   ticketCount: number;
@@ -111,8 +131,18 @@ declare global {
       projects: {
         list: () => Promise<ProjectSummary[]>;
         create: (input: NewProjectInput) => Promise<Project>;
-        update: (id: string, patch: ProjectPatch) => Promise<Project>;
+        update: (
+          id: string,
+          patch: ProjectPatch,
+          options?: ProjectUpdateOptions,
+        ) => Promise<Project>;
         delete: (id: string) => Promise<{ deletedTickets: number }>;
+      };
+      workflows: {
+        list: () => Promise<WorkflowSummary[]>;
+        create: (input: NewWorkflowRequest) => Promise<WorkflowSummary>;
+        update: (id: string, patch: WorkflowPatch) => Promise<WorkflowSummary>;
+        delete: (id: string) => Promise<void>;
       };
       tickets: {
         list: (filter?: TicketFilter) => Promise<Ticket[]>;

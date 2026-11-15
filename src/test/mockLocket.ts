@@ -1,4 +1,6 @@
 import type { Attachment, Ticket } from '@/data/types';
+import { normalizeData } from '@/data/workflows';
+import * as local from '@/state/localData';
 import type {
   AttachmentData,
   McpLogLine,
@@ -41,14 +43,33 @@ export const MOCK_SYSTEM_INFO: SystemInfo = {
 };
 
 export function installMockLocket(
-  init: Partial<Pick<MockLocket, 'data' | 'settings' | 'user'>> = {},
+  init: Partial<Pick<MockLocket, 'settings' | 'user'>> & {
+    /** Older shapes without workflows are fine: they get the default one, like real data. */
+    data?: (Omit<PersistedData, 'workflows'> & { workflows?: PersistedData['workflows'] }) | null;
+  } = {},
 ): MockLocket {
   /** The entity APIs operate on `mock.data`, creating an empty dataset on first write. */
   const clearLogs = () => {
     mock.logs = [];
     mock.logsClearedListeners.forEach((l) => l());
   };
-  const data = (): PersistedData => (mock.data ??= { projects: [], tickets: [], counters: {} });
+  const data = (): PersistedData => (mock.data ??= normalizeData({}));
+  /** Run a browser-fallback operation against `mock.data`, keeping the object identity. */
+  const apply = <R extends { data: PersistedData }>(op: (d: PersistedData) => R): R => {
+    const result = op(data());
+    Object.assign(data(), result.data);
+    return result;
+  };
+  const summary = (w: { id: string }) => {
+    const d = data();
+    const projectIds = d.projects.filter((p) => p.workflowId === w.id).map((p) => p.id);
+    const ticketCounts: Record<string, number> = {};
+    for (const t of d.tickets) {
+      if (projectIds.includes(t.projectId))
+        ticketCounts[t.status] = (ticketCounts[t.status] ?? 0) + 1;
+    }
+    return { projectIds, ticketCounts };
+  };
   /** Keep the bytes for `attachments.get` and return the metadata the store sees. */
   const store = (ticketId: string, list: NewAttachment[] = []): Attachment[] =>
     list.map((a) => {
@@ -57,7 +78,7 @@ export function installMockLocket(
     });
   const mock: MockLocket = {
     files: new Map(),
-    data: init.data ?? null,
+    data: init.data ? normalizeData(init.data) : null,
     settings: { ...DEFAULT_SETTINGS, ...init.settings },
     user: init.user ?? 'Test User',
     mcp: { running: false, port: null, url: null },
@@ -106,17 +127,14 @@ export function installMockLocket(
             icon: input.icon ?? 'rocket_launch',
             color: input.color ?? '#1976d2',
             description: input.description ?? '',
+            workflowId: input.workflowId ?? 'default',
           };
           data().projects.push(project);
           data().counters[project.id] = 0;
           return project;
         },
-        update: async (id, patch) => {
-          const project = data().projects.find((p) => p.id === id);
-          if (!project) throw new Error(`Project "${id}" not found`);
-          Object.assign(project, patch);
-          return project;
-        },
+        update: async (id, patch, options) =>
+          apply((d) => local.updateProject(d, id, patch, options)).project,
         delete: async (id) => {
           const d = data();
           const before = d.tickets.length;
@@ -124,6 +142,20 @@ export function installMockLocket(
           d.tickets = d.tickets.filter((t) => t.projectId !== id);
           delete d.counters[id];
           return { deletedTickets: before - d.tickets.length };
+        },
+      },
+      workflows: {
+        list: async () => data().workflows.map((w) => ({ ...w, ...summary(w) })),
+        create: async (input) => {
+          const { workflow } = apply((d) => local.createWorkflow(d, input));
+          return { ...workflow, ...summary(workflow) };
+        },
+        update: async (id, patch) => {
+          const { workflow } = apply((d) => local.updateWorkflow(d, id, patch));
+          return { ...workflow, ...summary(workflow) };
+        },
+        delete: async (id) => {
+          Object.assign(data(), local.deleteWorkflow(data(), id));
         },
       },
       tickets: {

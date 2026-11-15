@@ -1,5 +1,10 @@
 import { attachmentMarkdown } from '../attachments/rules';
-import type { PersistedAttachment, PersistedTicket } from '../db/types';
+import type {
+  PersistedAttachment,
+  PersistedStatus,
+  PersistedTicket,
+  PersistedWorkflow,
+} from '../db/types';
 
 export const ticketSummary = (t: PersistedTicket) => ({
   id: t.id,
@@ -19,9 +24,17 @@ const attachmentList = (list: PersistedAttachment[] | undefined): string =>
     .map((a) => `- \`${a.name}\` (${a.mime}, ${a.size} bytes): \`${attachmentMarkdown(a.name)}\``)
     .join('\n');
 
-export const ticketToMarkdown = (t: PersistedTicket): string => {
+/** What agents need to know about a workflow: the allowed statuses and what each means. */
+export const workflowSummary = (w: PersistedWorkflow) => ({
+  id: w.id,
+  name: w.name,
+  statuses: w.statuses.map(({ id, name, category }) => ({ id, name, category })),
+});
+
+/** `status` is the ticket's status as stored with its workflow, for showing its name. */
+export const ticketToMarkdown = (t: PersistedTicket, status?: PersistedStatus): string => {
   const meta = [
-    `- **Status:** ${t.status}`,
+    `- **Status:** ${status && status.name !== t.status ? `${status.name} (\`${t.status}\`)` : t.status}`,
     `- **Priority:** ${t.priority}`,
     `- **Labels:** ${t.labels.length ? t.labels.join(', ') : '_none_'}`,
     `- **Due:** ${t.due ?? '_none_'}`,

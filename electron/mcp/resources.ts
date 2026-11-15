@@ -1,5 +1,5 @@
 import { ResourceTemplate, type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getTicket, listProjects, listTickets } from '../services';
+import { getTicket, listProjects, listTickets, statusOfTicket } from '../services';
 import type { McpContext } from './context';
 import { ticketToMarkdown } from './format';
 
@@ -15,13 +15,14 @@ export function registerResources(server: McpServer, { log }: McpContext): void 
     async (uri) => {
       log('resources/read locket://projects');
       const projects = (await listProjects()).map(
-        ({ id, name, slug, icon, color, description }) => ({
+        ({ id, name, slug, icon, color, description, workflowId }) => ({
           id,
           name,
           slug,
           icon,
           color,
           description,
+          workflowId,
         }),
       );
       return {
@@ -55,9 +56,8 @@ export function registerResources(server: McpServer, { log }: McpContext): void 
     async (uri, { id }) => {
       log(`resources/read ${uri.href}`);
       const ticket = await getTicket(String(id));
-      return {
-        contents: [{ uri: uri.href, mimeType: 'text/markdown', text: ticketToMarkdown(ticket) }],
-      };
+      const text = ticketToMarkdown(ticket, await statusOfTicket(ticket));
+      return { contents: [{ uri: uri.href, mimeType: 'text/markdown', text }] };
     },
   );
 }

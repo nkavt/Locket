@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PersistedData } from '../db/types';
 import { ticketFixture, useTestDb } from '../test/db';
+import { DEFAULT_WORKFLOW } from '../workflows/rules';
 
 type Handler = (event: unknown, ...args: unknown[]) => unknown;
 const handlers = new Map<string, Handler>();
@@ -49,6 +50,10 @@ describe('data IPC', () => {
         'tickets:get',
         'tickets:list',
         'tickets:update',
+        'workflows:create',
+        'workflows:delete',
+        'workflows:list',
+        'workflows:update',
       ].sort(),
     );
   });
@@ -97,7 +102,12 @@ describe('data IPC', () => {
   it('replaces the whole workspace and notifies', async () => {
     notify.mockClear();
     await invoke('data:replace', { projects: [], tickets: [], counters: {} });
-    expect(notify).toHaveBeenCalledWith({ projects: [], tickets: [], counters: {} });
+    expect(notify).toHaveBeenCalledWith({
+      workflows: [DEFAULT_WORKFLOW],
+      projects: [],
+      tickets: [],
+      counters: {},
+    });
     await invoke('projects:delete', 'p1').catch(() => undefined);
   });
 });

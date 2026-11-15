@@ -1,11 +1,14 @@
 import { attachmentKey, ticketAttachments } from '@/data/attachments';
 import type { Attachment, Comment, Project, Ticket } from '@/data/types';
+import { normalizeData, type Workflow, type WorkflowPatch } from '@/data/workflows';
 import type {
   NewAttachment,
   NewProjectInput,
   NewTicketInput,
+  NewWorkflowRequest,
   PersistedData,
   ProjectPatch,
+  ProjectUpdateOptions,
   TicketPatch,
   Unsubscribe,
 } from '@/types/electron-api';
@@ -21,8 +24,13 @@ export interface DataBackend {
   /** Replace the whole workspace: first-run seeding and reset only. */
   replace(data: PersistedData): Promise<void>;
   createProject(input: NewProjectInput): Promise<Project>;
-  updateProject(id: string, patch: ProjectPatch): Promise<Project>;
+  /** A workflow switch also moves the project's tickets, so callers reload afterwards. */
+  updateProject(id: string, patch: ProjectPatch, options?: ProjectUpdateOptions): Promise<Project>;
   deleteProject(id: string): Promise<void>;
+  createWorkflow(input: NewWorkflowRequest): Promise<Workflow>;
+  /** May move tickets out of deleted statuses, so callers reload afterwards. */
+  updateWorkflow(id: string, patch: WorkflowPatch): Promise<Workflow>;
+  deleteWorkflow(id: string): Promise<void>;
   createTicket(input: NewTicketInput): Promise<Ticket>;
   updateTicket(id: string, patch: TicketPatch): Promise<Ticket>;
   deleteTicket(id: string): Promise<void>;
@@ -46,7 +54,7 @@ export const hasElectronBridge = (): boolean =>
   typeof window !== 'undefined' && !!window.locket?.data;
 
 export const electronBackend = (): DataBackend => {
-  const { data, projects, tickets, comments, attachments } = window.locket;
+  const { data, projects, tickets, comments, attachments, workflows } = window.locket;
   // A saved image never changes, so one blob URL per ticket + name lasts until it is deleted.
   const urls = new Map<string, Promise<string | null>>();
   const forget = (key: string) => {
@@ -66,10 +74,13 @@ export const electronBackend = (): DataBackend => {
     load: () => data.get(),
     replace: (d) => data.replace(d),
     createProject: (input) => projects.create(input),
-    updateProject: (id, patch) => projects.update(id, patch),
+    updateProject: (id, patch, options) => projects.update(id, patch, options),
     deleteProject: async (id) => {
       await projects.delete(id);
     },
+    createWorkflow: (input) => workflows.create(input),
+    updateWorkflow: (id, patch) => workflows.update(id, patch),
+    deleteWorkflow: (id) => workflows.delete(id),
     createTicket: (input) => tickets.create(input),
     updateTicket: (id, patch) => tickets.update(id, patch),
     deleteTicket: (id) => tickets.delete(id),
@@ -128,12 +139,8 @@ export const localBackend = (): DataBackend => {
     try {
       const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as Partial<PersistedData>;
-        cache = {
-          projects: parsed.projects ?? [],
-          tickets: parsed.tickets ?? [],
-          counters: parsed.counters ?? {},
-        };
+        // Data saved before workflows existed gets the default workflow here.
+        cache = normalizeData(JSON.parse(raw) as Partial<PersistedData>);
       }
     } catch {
       // unreadable storage counts as first run
@@ -150,7 +157,7 @@ export const localBackend = (): DataBackend => {
     }
   };
 
-  const current = (): PersistedData => read() ?? { projects: [], tickets: [], counters: {} };
+  const current = (): PersistedData => read() ?? normalizeData({});
 
   // Image bytes sit next to the workspace as data URLs, one key per image.
   const files = new Map<string, string>();
@@ -191,17 +198,30 @@ export const localBackend = (): DataBackend => {
         // storage unavailable
       }
       files.clear();
-      write(d);
+      write(normalizeData(d));
     },
     createProject: async (input) => {
       const { data, project } = local.createProject(current(), input);
       write(data);
       return project;
     },
-    updateProject: async (id, patch) => {
-      const { data, project } = local.updateProject(current(), id, patch);
+    updateProject: async (id, patch, options) => {
+      const { data, project } = local.updateProject(current(), id, patch, options);
       write(data);
       return project;
+    },
+    createWorkflow: async (input) => {
+      const { data, workflow } = local.createWorkflow(current(), input);
+      write(data);
+      return workflow;
+    },
+    updateWorkflow: async (id, patch) => {
+      const { data, workflow } = local.updateWorkflow(current(), id, patch);
+      write(data);
+      return workflow;
+    },
+    deleteWorkflow: async (id) => {
+      write(local.deleteWorkflow(current(), id));
     },
     deleteProject: async (id) => {
       dropFiles(keysOf(current().tickets.filter((t) => t.projectId === id)));

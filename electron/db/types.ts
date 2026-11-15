@@ -1,5 +1,15 @@
 // Plain shapes that cross process boundaries (services, IPC, preload, MCP).
 // Deliberately free of TypeORM so the renderer and tests can use them as-is.
+import type { PersistedWorkflow } from '../workflows/rules';
+
+export type {
+  NewWorkflowInput,
+  PersistedStatus,
+  PersistedWorkflow,
+  StatusCategory,
+  StatusInput,
+  WorkflowPatch,
+} from '../workflows/rules';
 
 export interface PersistedProject {
   id: string;
@@ -8,6 +18,8 @@ export interface PersistedProject {
   icon: string;
   color: string;
   description: string;
+  /** The workflow whose statuses this project's tickets use. */
+  workflowId: string;
 }
 
 /** An image stored with a ticket or a comment. The bytes travel separately (see `AttachmentData`). */
@@ -58,6 +70,8 @@ export interface PersistedTicket {
 
 /** The whole workspace as one document, which is how it is loaded and saved. */
 export interface PersistedData {
+  /** Always holds the default workflow. Older payloads without it get it on load. */
+  workflows: PersistedWorkflow[];
   projects: PersistedProject[];
   tickets: PersistedTicket[];
   counters: Record<string, number>;
@@ -69,12 +83,22 @@ export interface NewProjectInput {
   icon?: string;
   color?: string;
   description?: string;
+  /** Defaults to the default workflow. */
+  workflowId?: string;
 }
 
 /** Editable project fields. The slug is immutable once tickets carry it. */
 export type ProjectPatch = Partial<
-  Pick<PersistedProject, 'name' | 'icon' | 'color' | 'description'>
+  Pick<PersistedProject, 'name' | 'icon' | 'color' | 'description' | 'workflowId'>
 >;
+
+export interface ProjectUpdateOptions {
+  /**
+   * When the workflow changes: old status id → new status id or name for the project's
+   * tickets. Statuses left out move to the first status of the same category.
+   */
+  statusMap?: Record<string, string>;
+}
 
 export const SLUG_RE = /^[a-z0-9-]{2,12}$/;
 

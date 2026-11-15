@@ -1,4 +1,5 @@
-import type { Ticket } from '@/data/types';
+import type { Ticket, WorkflowStatus } from '@/data/types';
+import { isClosed } from '@/data/workflows';
 
 export interface TicketFilterState {
   search: string;
@@ -24,6 +25,11 @@ export function filterTickets(tickets: Ticket[], f: TicketFilterState): Ticket[]
   });
 }
 
-export function isOverdue(ticket: Ticket, now = new Date()): boolean {
-  return !!ticket.due && new Date(ticket.due) < now && ticket.status !== 'done';
+/** Past its due date and still open: done and cancelled tickets are never overdue. */
+export function isOverdue(
+  ticket: Ticket,
+  status: Pick<WorkflowStatus, 'category'> | undefined,
+  now = new Date(),
+): boolean {
+  return !!ticket.due && new Date(ticket.due) < now && !isClosed(status);
 }

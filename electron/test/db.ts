@@ -2,9 +2,10 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { afterAll, beforeAll, beforeEach } from 'vitest';
-import type { PersistedData, PersistedTicket } from '../db/types';
+import type { PersistedTicket } from '../db/types';
+import type { LoosePersistedData } from '../workflows/normalize';
 
-export const emptySeed = (): PersistedData => ({ projects: [], tickets: [], counters: {} });
+export const emptySeed = (): LoosePersistedData => ({ projects: [], tickets: [], counters: {} });
 
 export const ticketFixture = (overrides: Partial<PersistedTicket> = {}): PersistedTicket => ({
   id: 'one-1',
@@ -27,7 +28,7 @@ export const ticketFixture = (overrides: Partial<PersistedTicket> = {}): Persist
  * test. Needs Electron's node (see the `test` script): better-sqlite3 is built
  * against Electron's ABI. Test files must also `vi.mock('electron', ...)`.
  */
-export function useTestDb(seed: () => PersistedData = emptySeed): string {
+export function useTestDb(seed: () => LoosePersistedData = emptySeed): string {
   // Images are files; each test file gets its own folder, emptied by the reseed below.
   const attachmentsDir = mkdtempSync(path.join(tmpdir(), 'locket-attachments-'));
 

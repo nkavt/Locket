@@ -1,16 +1,16 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SelectOption } from '@/components/ui';
-import { PRIORITIES, STATUSES } from '@/data/constants';
-import type { PriorityValue, StatusValue } from '@/data/types';
+import { PRIORITIES } from '@/data/constants';
+import type { PriorityValue, StatusValue, Workflow } from '@/data/types';
 
-/** STATUSES / PRIORITIES with their labels translated for SelectInput. */
-export function useTicketOptions() {
+/** The workflow's statuses and the translated PRIORITIES, ready for SelectInput. */
+export function useTicketOptions(workflow: Workflow) {
   const { t } = useTranslation();
   return useMemo(() => {
-    const statuses: SelectOption<StatusValue>[] = STATUSES.map((s) => ({
-      value: s.value,
-      label: t(`status.${s.value}`),
+    const statuses: SelectOption<StatusValue>[] = workflow.statuses.map((s) => ({
+      value: s.id,
+      label: s.name,
       icon: s.icon,
     }));
     const priorities: SelectOption<PriorityValue>[] = PRIORITIES.map((p) => ({
@@ -19,5 +19,5 @@ export function useTicketOptions() {
       icon: p.icon,
     }));
     return { statuses, priorities };
-  }, [t]);
+  }, [t, workflow]);
 }

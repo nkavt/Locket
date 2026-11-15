@@ -9,10 +9,10 @@ import { NewTicketDialog } from '../NewTicketDialog';
 import { EMPTY_FILTERS, filterTickets, type TicketFilterState } from '../utils';
 import { EmptyState } from '@/components/EmptyState';
 import { Icon } from '@/components/Icon';
-import { STATUSES } from '@/data/constants';
+import { defaultStatus, findStatus } from '@/data/workflows';
 import { ticketPath } from '@/router';
-import { useProjectTickets } from '@/state/useAppState';
-import type { Project, StatusValue, Ticket } from '@/data/types';
+import { useProjectTickets, useProjectWorkflow } from '@/state/useAppState';
+import type { Project, Ticket } from '@/data/types';
 
 interface TicketListProps {
   project: Project;
@@ -20,6 +20,7 @@ interface TicketListProps {
 
 export function TicketList({ project }: TicketListProps) {
   const tickets = useProjectTickets(project.id);
+  const workflow = useProjectWorkflow(project);
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [filters, setFilters] = useState<TicketFilterState>(EMPTY_FILTERS);
@@ -27,11 +28,14 @@ export function TicketList({ project }: TicketListProps) {
 
   const filtered = useMemo(() => filterTickets(tickets, filters), [tickets, filters]);
 
+  // Groups follow the workflow's order. A status the workflow doesn't know (only possible
+  // mid-sync) shows under the default one rather than disappearing.
   const grouped = useMemo(() => {
-    const g: Record<StatusValue, Ticket[]> = { todo: [], in_progress: [], done: [] };
-    filtered.forEach((t) => g[t.status]?.push(t));
+    const g = new Map<string, Ticket[]>(workflow.statuses.map((s) => [s.id, []]));
+    const fallback = defaultStatus(workflow).id;
+    filtered.forEach((t) => g.get(findStatus(workflow, t.status) ? t.status : fallback)!.push(t));
     return g;
-  }, [filtered]);
+  }, [filtered, workflow]);
 
   const newTicketButton = (variant: 'contained' | 'outlined') => (
     <Button
@@ -45,8 +49,13 @@ export function TicketList({ project }: TicketListProps) {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <TicketListHeader project={project} tickets={tickets} action={newTicketButton('contained')} />
-      <TicketFilters value={filters} onChange={setFilters} />
+      <TicketListHeader
+        project={project}
+        workflow={workflow}
+        tickets={tickets}
+        action={newTicketButton('contained')}
+      />
+      <TicketFilters workflow={workflow} value={filters} onChange={setFilters} />
 
       <Box sx={{ flex: 1, overflowY: 'auto', padding: '12px 16px 40px' }}>
         {filtered.length === 0 ? (
@@ -56,11 +65,11 @@ export function TicketList({ project }: TicketListProps) {
             action={newTicketButton('outlined')}
           />
         ) : (
-          STATUSES.map((s) => (
+          workflow.statuses.map((s) => (
             <TicketGroup
-              key={s.value}
+              key={s.id}
               status={s}
-              tickets={grouped[s.value]}
+              tickets={grouped.get(s.id) ?? []}
               onOpenTicket={(id) => navigate(ticketPath(project.id, id))}
             />
           ))

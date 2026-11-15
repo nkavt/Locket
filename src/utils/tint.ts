@@ -1,6 +1,21 @@
 import { alpha, lighten, type Theme } from '@mui/material/styles';
 
 /**
+ * The real colour behind a hex value or a palette path such as "info.main" (statuses use
+ * those so the built-in ones follow the theme). The tint helpers below need a real colour.
+ */
+export const paletteColor = (theme: Theme, color: string): string => {
+  if (color.startsWith('#')) return color;
+  const value = color
+    .split('.')
+    .reduce<unknown>(
+      (node, key) => (node as Record<string, unknown> | undefined)?.[key],
+      theme.palette,
+    );
+  return typeof value === 'string' ? value : color;
+};
+
+/**
  * Text/icon colour for a user-picked colour (project, label). The palette is tuned for
  * light backgrounds, so dark mode lifts it until it reads on dark surfaces.
  */

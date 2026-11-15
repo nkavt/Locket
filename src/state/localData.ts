@@ -6,12 +6,25 @@ import {
   isMaterialSymbol,
   unknownIconMessage,
 } from '@/data/projectIcons';
+import {
+  buildWorkflow,
+  DEFAULT_WORKFLOW_ID,
+  defaultStatus,
+  planWorkflowSwitch,
+  planWorkflowUpdate,
+  resolveStatus,
+  workflowOf,
+  type Workflow,
+  type WorkflowPatch,
+} from '@/data/workflows';
 import type {
   NewAttachment,
   NewProjectInput,
   NewTicketInput,
+  NewWorkflowRequest,
   PersistedData,
   ProjectPatch,
+  ProjectUpdateOptions,
   TicketPatch,
 } from '@/types/electron-api';
 
@@ -48,6 +61,7 @@ export const withoutProject = (d: PersistedData, id: string): PersistedData => {
   const counters = { ...d.counters };
   delete counters[id];
   return {
+    ...d,
     projects: d.projects.filter((p) => p.id !== id),
     tickets: d.tickets.filter((t) => t.projectId !== id),
     counters,
@@ -136,11 +150,31 @@ export const withoutComment = (
 
 // --- operations: decide the change too (browser fallback, mirrors electron/services) ---
 
+/** The workflow a project's tickets use. */
+const projectWorkflow = (d: PersistedData, projectId: string): Workflow =>
+  workflowOf(d.workflows, d.projects.find((p) => p.id === projectId)?.workflowId);
+
+/** Point tickets of `projectIds` at other statuses: old id → new id. */
+const moveStatuses = (
+  d: PersistedData,
+  projectIds: string[],
+  moves: Record<string, string>,
+): PersistedData => ({
+  ...d,
+  tickets: d.tickets.map((t) =>
+    projectIds.includes(t.projectId) && moves[t.status] ? { ...t, status: moves[t.status] } : t,
+  ),
+});
+
 export function createProject(d: PersistedData, input: NewProjectInput) {
   if (d.projects.some((p) => p.slug === input.slug)) {
     throw new Error(`Slug "${input.slug}" already in use`);
   }
   checkLook(input);
+  const workflowId = input.workflowId ?? DEFAULT_WORKFLOW_ID;
+  if (!d.workflows.some((w) => w.id === workflowId)) {
+    throw new Error(`Workflow "${workflowId}" not found`);
+  }
   const project: Project = {
     id: `${input.slug}-${Math.random().toString(36).slice(2, 6)}`,
     name: input.name,
@@ -148,21 +182,36 @@ export function createProject(d: PersistedData, input: NewProjectInput) {
     icon: input.icon ?? DEFAULT_PROJECT_ICON,
     color: input.color ?? DEFAULT_PROJECT_COLOR,
     description: input.description ?? `# ${input.name}\n\n`,
+    workflowId,
   };
   return { data: withProject(d, project), project };
 }
 
-export function updateProject(d: PersistedData, id: string, patch: ProjectPatch) {
+export function updateProject(
+  d: PersistedData,
+  id: string,
+  patch: ProjectPatch,
+  { statusMap }: ProjectUpdateOptions = {},
+) {
   const current = d.projects.find((p) => p.id === id);
   if (!current) throw new Error(`Project "${id}" not found`);
   checkLook(patch);
+  let data = d;
+  if (patch.workflowId !== undefined && patch.workflowId !== current.workflowId) {
+    const to = d.workflows.find((w) => w.id === patch.workflowId);
+    if (!to) throw new Error(`Workflow "${patch.workflowId}" not found`);
+    const from = projectWorkflow(d, id);
+    data = moveStatuses(d, [id], planWorkflowSwitch(from, to, statusMap));
+  }
   const project = { ...current, ...patch };
-  return { data: withProject(d, project), project };
+  return { data: withProject(data, project), project };
 }
 
 export function createTicket(d: PersistedData, input: NewTicketInput) {
   const project = d.projects.find((p) => p.id === input.projectId);
   if (!project) throw new Error(`Project "${input.projectId}" not found`);
+  const workflow = projectWorkflow(d, project.id);
+  const status = input.status ? resolveStatus(workflow, input.status) : defaultStatus(workflow);
   const next = (d.counters[project.id] || 0) + 1;
   const now = nowIso();
   const ticket: Ticket = {
@@ -170,7 +219,7 @@ export function createTicket(d: PersistedData, input: NewTicketInput) {
     projectId: project.id,
     title: input.title,
     description: input.description ?? '',
-    status: input.status ?? 'todo',
+    status: status.id,
     priority: input.priority ?? 'medium',
     labels: input.labels ?? [],
     due: input.due ?? null,
@@ -190,6 +239,9 @@ export function updateTicket(d: PersistedData, id: string, patch: TicketPatch) {
   const current = d.tickets.find((t) => t.id === id);
   if (!current) throw new Error(`Ticket "${id}" not found`);
   const ticket = { ...current, ...patch, updated: nowIso() };
+  if (patch.status !== undefined) {
+    ticket.status = resolveStatus(projectWorkflow(d, current.projectId), patch.status).id;
+  }
   return { data: withTicket(d, ticket), ticket };
 }
 
@@ -211,4 +263,51 @@ export function addComment(
     attachments: attachmentMeta(attachments),
   };
   return { data: withComment(d, ticketId, comment), comment };
+}
+
+// --- workflows (mirror electron/services/workflows.ts) ---
+
+const allStatusIds = (d: PersistedData, except?: string) =>
+  new Set(d.workflows.filter((w) => w.id !== except).flatMap((w) => w.statuses.map((s) => s.id)));
+
+const findWorkflow = (d: PersistedData, id: string): Workflow => {
+  const workflow = d.workflows.find((w) => w.id === id);
+  if (!workflow) throw new Error(`Workflow "${id}" not found`);
+  return workflow;
+};
+
+export function createWorkflow(d: PersistedData, input: NewWorkflowRequest) {
+  const source = input.copyFrom ? findWorkflow(d, input.copyFrom) : null;
+  const workflow = buildWorkflow(
+    { name: input.name, statuses: input.statuses ?? source?.statuses },
+    new Set(d.workflows.map((w) => w.id)),
+    allStatusIds(d),
+  );
+  return { data: { ...d, workflows: [...d.workflows, workflow] }, workflow };
+}
+
+export function updateWorkflow(d: PersistedData, id: string, patch: WorkflowPatch) {
+  const current = findWorkflow(d, id);
+  const projectIds = d.projects.filter((p) => p.workflowId === id).map((p) => p.id);
+  const counts: Record<string, number> = {};
+  for (const t of d.tickets) {
+    if (projectIds.includes(t.projectId)) counts[t.status] = (counts[t.status] ?? 0) + 1;
+  }
+  const { workflow, moves } = planWorkflowUpdate(current, patch, counts, allStatusIds(d, id));
+  const moved = moveStatuses(d, projectIds, moves);
+  const data = { ...moved, workflows: d.workflows.map((w) => (w.id === id ? workflow : w)) };
+  return { data, workflow };
+}
+
+export function deleteWorkflow(d: PersistedData, id: string): PersistedData {
+  const workflow = findWorkflow(d, id);
+  if (id === DEFAULT_WORKFLOW_ID) throw new Error('The default workflow cannot be deleted');
+  const users = d.projects.filter((p) => p.workflowId === id);
+  if (users.length) {
+    throw new Error(
+      `Workflow "${workflow.name}" is used by ${users.map((p) => p.id).join(', ')}. ` +
+        'Move those projects to another workflow first.',
+    );
+  }
+  return { ...d, workflows: d.workflows.filter((w) => w.id !== id) };
 }
