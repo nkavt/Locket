@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render, screen } from '@/test/render';
 import { describe, expect, it, vi } from 'vitest';
 import { AttachmentScope } from '@/features/attachments/AttachmentScope';
 import type { Comment } from '@/data/types';

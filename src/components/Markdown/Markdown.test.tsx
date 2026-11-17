@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render, screen } from '@/test/render';
 import { describe, expect, it } from 'vitest';
 import { AttachmentScope } from '@/features/attachments/AttachmentScope';
 import { Markdown } from './Markdown';
@@ -114,6 +114,13 @@ describe('Markdown code highlighting', () => {
     const { container } = render(<Markdown source={fence(lang, 'const x = 1;')} />);
     expect(blockOf(container).querySelector('span')).toBeNull();
     expect(labelOf(container)).toBe(lang);
+  });
+
+  it('colours tokens from the theme', () => {
+    const { container } = render(<Markdown source={fence('ts', 'const x = 1;')} />);
+    const keyword = container.querySelector('.hljs-keyword')!;
+    // The test providers use the light theme; #cf222e is its syntax.keyword.
+    expect(getComputedStyle(keyword).color).toBe('rgb(207, 34, 46)');
   });
 
   it('never highlights inline code', () => {
