@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Sidebar } from './Sidebar';
-import { makeWorkspace, seedLocalWorkspace } from '@/test/fixtures';
+import { ARCHIVED_OPEN_KEY, Sidebar } from './Sidebar';
+import { makeProject, makeWorkspace, seedLocalWorkspace } from '@/test/fixtures';
 import { renderWithProviders, screen, userEvent, waitFor, within } from '@/test/render';
 
 const data = makeWorkspace();
@@ -54,5 +54,82 @@ describe('Sidebar', () => {
     await waitFor(() =>
       expect(screen.queryByRole('link', { name: new RegExp(second.name) })).not.toBeInTheDocument(),
     );
+  });
+
+  describe('archived projects', () => {
+    const archivedSection = () => screen.findByRole('button', { name: /Archived · \d+/ });
+
+    it('has no Archived section while nothing is archived', async () => {
+      renderWithProviders(<Sidebar />);
+      await screen.findByRole('link', { name: /Alpha/ });
+      expect(screen.queryByRole('button', { name: /Archived/ })).not.toBeInTheDocument();
+    });
+
+    it('archives from the context menu into a collapsed section, and remembers opening it', async () => {
+      renderWithProviders(<Sidebar />);
+      await userEvent.pointer({
+        keys: '[MouseRight]',
+        target: await screen.findByRole('link', { name: /Beta/ }),
+      });
+      await userEvent.click(await screen.findByRole('menuitem', { name: 'Archive project' }));
+
+      const toggle = await archivedSection();
+      expect(toggle).toHaveTextContent('Archived · 1');
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      expect(screen.queryByRole('link', { name: /Beta/ })).not.toBeInTheDocument();
+
+      await userEvent.click(toggle);
+      expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByRole('link', { name: /Beta/ })).toBeInTheDocument();
+      expect(localStorage.getItem(ARCHIVED_OPEN_KEY)).toBe('1');
+    });
+
+    it('lists archived projects after active ones, most recently archived first', async () => {
+      seedLocalWorkspace({
+        ...data,
+        projects: [
+          { ...data.projects[0], archivedAt: '2026-01-01T00:00:00.000Z' },
+          data.projects[1],
+          makeProject({ id: 'gamma', name: 'Gamma', archivedAt: '2026-02-01T00:00:00.000Z' }),
+        ],
+      });
+      localStorage.setItem(ARCHIVED_OPEN_KEY, '1');
+      renderWithProviders(<Sidebar />);
+      await archivedSection();
+      expect(screen.getAllByRole('link').map((a) => a.textContent)).toEqual([
+        expect.stringContaining('Beta'),
+        expect.stringContaining('Gamma'),
+        expect.stringContaining('Alpha'),
+        expect.stringContaining('Settings'),
+      ]);
+    });
+
+    it('opens the section when an archived project is the current page', async () => {
+      seedLocalWorkspace({
+        ...data,
+        projects: [data.projects[0], { ...data.projects[1], archivedAt: '2026-01-01T00:00:00Z' }],
+      });
+      renderWithProviders(<Sidebar />, { route: `/projects/${data.projects[1].id}` });
+      expect(await archivedSection()).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByRole('link', { name: /Beta/ })).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('unarchives from the context menu', async () => {
+      seedLocalWorkspace({
+        ...data,
+        projects: [data.projects[0], { ...data.projects[1], archivedAt: '2026-01-01T00:00:00Z' }],
+      });
+      localStorage.setItem(ARCHIVED_OPEN_KEY, '1');
+      renderWithProviders(<Sidebar />);
+      await userEvent.pointer({
+        keys: '[MouseRight]',
+        target: await screen.findByRole('link', { name: /Beta/ }),
+      });
+      await userEvent.click(await screen.findByRole('menuitem', { name: 'Unarchive project' }));
+      await waitFor(() =>
+        expect(screen.queryByRole('button', { name: /Archived/ })).not.toBeInTheDocument(),
+      );
+      expect(screen.getByRole('link', { name: /Beta/ })).toBeInTheDocument();
+    });
   });
 });

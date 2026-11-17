@@ -42,7 +42,10 @@ export interface NewProjectInput {
   description?: string;
 }
 
-export type ProjectPatch = Partial<Pick<Project, 'name' | 'icon' | 'color' | 'description'>>;
+export type ProjectPatch = Partial<Pick<Project, 'name' | 'icon' | 'color' | 'description'>> & {
+  /** Archive (true) or unarchive (false); the backend sets `archivedAt`. */
+  archived?: boolean;
+};
 
 export interface ProjectSummary extends Project {
   ticketCount: number;
@@ -70,6 +73,8 @@ export interface TicketFilter {
   priority?: Ticket['priority'];
   label?: string;
   query?: string;
+  /** Without a projectId, tickets of archived projects are left out unless this is set. */
+  includeArchived?: boolean;
 }
 
 export interface McpStatus {
@@ -109,7 +114,8 @@ declare global {
       };
       /** Per-entity operations backed by the main-process services (shared with MCP). */
       projects: {
-        list: () => Promise<ProjectSummary[]>;
+        /** Active projects only, unless `includeArchived` is set. */
+        list: (options?: { includeArchived?: boolean }) => Promise<ProjectSummary[]>;
         create: (input: NewProjectInput) => Promise<Project>;
         update: (id: string, patch: ProjectPatch) => Promise<Project>;
         delete: (id: string) => Promise<{ deletedTickets: number }>;

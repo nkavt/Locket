@@ -51,7 +51,8 @@ contextBridge.exposeInMainWorld('locket', {
       subscribe<PersistedData>('data:changed', cb),
   },
   projects: {
-    list: (): Promise<ProjectSummary[]> => ipcRenderer.invoke('projects:list'),
+    list: (options?: { includeArchived?: boolean }): Promise<ProjectSummary[]> =>
+      ipcRenderer.invoke('projects:list', options),
     create: (input: NewProjectInput): Promise<PersistedProject> =>
       ipcRenderer.invoke('projects:create', input),
     update: (id: string, patch: ProjectPatch): Promise<PersistedProject> =>

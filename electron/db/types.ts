@@ -8,6 +8,9 @@ export interface PersistedProject {
   icon: string;
   color: string;
   description: string;
+  /** ISO time the project was archived, or null while it is active. Payloads saved before
+   * archiving existed may lack it, which also means active. */
+  archivedAt?: string | null;
 }
 
 /** An image stored with a ticket or a comment. The bytes travel separately (see `AttachmentData`). */
@@ -74,7 +77,10 @@ export interface NewProjectInput {
 /** Editable project fields. The slug is immutable once tickets carry it. */
 export type ProjectPatch = Partial<
   Pick<PersistedProject, 'name' | 'icon' | 'color' | 'description'>
->;
+> & {
+  /** Archive (true) or unarchive (false). The service turns it into `archivedAt`. */
+  archived?: boolean;
+};
 
 export const SLUG_RE = /^[a-z0-9-]{2,12}$/;
 
@@ -102,4 +108,6 @@ export interface TicketFilter {
   label?: string;
   /** Case-insensitive substring over title, id and labels. */
   query?: string;
+  /** Without a projectId, tickets of archived projects are left out unless this is set. */
+  includeArchived?: boolean;
 }

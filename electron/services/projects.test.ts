@@ -90,4 +90,50 @@ describe('projects service', () => {
     expect(snap.counters).toEqual({ keep: 1 });
     await expect(deleteProject('gone')).rejects.toBeInstanceOf(NotFoundError);
   });
+  describe('archiving', () => {
+    it('archives with a timestamp and unarchives back to null, keeping the row', async () => {
+      const p = await createProject({ name: 'One', slug: 'one' });
+      expect(p.archivedAt).toBeNull();
+
+      const archived = await updateProject(p.id, { archived: true });
+      expect(archived.archivedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      expect(await getProject(p.id)).toEqual(archived);
+
+      const restored = await updateProject(p.id, { archived: false });
+      expect(restored.archivedAt).toBeNull();
+      expect((await readSnapshot()).projects).toEqual([restored]);
+    });
+
+    it('keeps the first archive time when archived again', async () => {
+      const p = await createProject({ name: 'One', slug: 'one' });
+      const first = await updateProject(p.id, { archived: true });
+      await new Promise((r) => setTimeout(r, 5));
+      const again = await updateProject(p.id, { archived: true, name: 'Renamed' });
+      expect(again).toMatchObject({ name: 'Renamed', archivedAt: first.archivedAt });
+    });
+
+    it('lists active projects only unless archived ones are asked for', async () => {
+      const a = await createProject({ name: 'A', slug: 'aa' });
+      const b = await createProject({ name: 'B', slug: 'bb' });
+      await updateProject(a.id, { archived: true });
+      expect((await listProjects()).map((p) => p.id)).toEqual([b.id]);
+      expect((await listProjects({ includeArchived: true })).map((p) => p.id)).toEqual([
+        a.id,
+        b.id,
+      ]);
+    });
+
+    it('treats projects saved before archiving existed as active', async () => {
+      const { replaceSnapshot } = await import('./snapshot');
+      await replaceSnapshot({
+        projects: [
+          { id: 'old', name: 'Old', slug: 'old', icon: 'bolt', color: '#000000', description: '' },
+        ],
+        tickets: [],
+        counters: { old: 0 },
+      });
+      expect(await getProject('old')).toMatchObject({ archivedAt: null });
+      expect((await listProjects()).map((p) => p.id)).toEqual(['old']);
+    });
+  });
 });

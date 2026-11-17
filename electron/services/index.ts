@@ -18,6 +18,7 @@ export {
   listProjects,
   repairProjectIcons,
   updateProject,
+  type ProjectListOptions,
   type ProjectSummary,
 } from './projects';
 export { readSnapshot, readSnapshotIfInitialized, replaceSnapshot } from './snapshot';

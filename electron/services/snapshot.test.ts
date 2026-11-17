@@ -31,7 +31,8 @@ describe('snapshot service', () => {
 
   it('round-trips a whole workspace, ordering comments by time', async () => {
     const snap = await readSnapshot();
-    expect(snap.projects).toEqual(SEED.projects);
+    // The seed predates archiving; such projects read back as active.
+    expect(snap.projects).toEqual(SEED.projects.map((p) => ({ ...p, archivedAt: null })));
     expect(snap.counters).toEqual(SEED.counters);
     expect(snap.tickets.map((t) => t.id)).toEqual(['one-1', 'two-1']);
     const [later, earlier] = SEED.tickets[0].comments;

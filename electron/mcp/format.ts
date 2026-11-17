@@ -1,6 +1,12 @@
 import { attachmentMarkdown } from '../attachments/rules';
 import type { PersistedAttachment, PersistedTicket } from '../db/types';
 
+/** How a project's archive state is shown to agents. */
+export const archiveFields = (archivedAt: string | null | undefined) => ({
+  archived: !!archivedAt,
+  archivedAt: archivedAt ?? null,
+});
+
 export const ticketSummary = (t: PersistedTicket) => ({
   id: t.id,
   projectId: t.projectId,

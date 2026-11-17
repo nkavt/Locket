@@ -4,12 +4,22 @@ import { useTranslation } from 'react-i18next';
 
 interface ProjectMenuProps {
   anchor: HTMLElement | null;
+  /** Whether the project is archived: picks Archive or Unarchive. */
+  archived: boolean;
   onClose: () => void;
   onRename: () => void;
+  onToggleArchived: () => void;
   onDelete: () => void;
 }
 
-export function ProjectMenu({ anchor, onClose, onRename, onDelete }: ProjectMenuProps) {
+export function ProjectMenu({
+  anchor,
+  archived,
+  onClose,
+  onRename,
+  onToggleArchived,
+  onDelete,
+}: ProjectMenuProps) {
   const { t } = useTranslation();
   const pick = (fn: () => void) => () => {
     fn();
@@ -28,6 +38,14 @@ export function ProjectMenu({ anchor, onClose, onRename, onDelete }: ProjectMenu
           <Icon name="edit" size={18} />
         </ListItemIcon>
         <ListItemText>{t('projects.editProject')}</ListItemText>
+      </MenuItem>
+      <MenuItem onClick={pick(onToggleArchived)}>
+        <ListItemIcon>
+          <Icon name={archived ? 'unarchive' : 'archive'} size={18} />
+        </ListItemIcon>
+        <ListItemText>
+          {archived ? t('projects.archive.unarchiveProject') : t('projects.archive.archive')}
+        </ListItemText>
       </MenuItem>
       <MenuItem onClick={pick(onDelete)} sx={{ color: 'error.main' }}>
         <ListItemIcon>

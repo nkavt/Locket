@@ -24,7 +24,9 @@ export function registerTicketTools(server: McpServer, { log, changed }: McpCont
     {
       title: 'List tickets',
       description:
-        'List tickets, optionally filtered by project, status, priority, label or a text query over title/id/labels. Returns summaries; use get_ticket for full content.',
+        'List tickets, optionally filtered by project, status, priority, label or a text query over title/id/labels. ' +
+        'Without projectId, tickets of archived projects are left out unless includeArchived is true. ' +
+        'Returns summaries; use get_ticket for full content.',
       inputSchema: {
         projectId: z.string().optional().describe('Restrict to one project id'),
         status: STATUS.optional(),
@@ -34,6 +36,10 @@ export function registerTicketTools(server: McpServer, { log, changed }: McpCont
           .string()
           .optional()
           .describe('Case-insensitive substring over title, id and labels'),
+        includeArchived: z
+          .boolean()
+          .optional()
+          .describe('Also list tickets of archived projects when no projectId is given'),
       },
       annotations: { readOnlyHint: true },
     },
@@ -66,7 +72,8 @@ export function registerTicketTools(server: McpServer, { log, changed }: McpCont
       title: 'Create ticket',
       description:
         'Create a ticket in a project. The id is assigned automatically. Images can be attached ' +
-        'in the same call and shown inline with ![](<name>) in the description.',
+        'in the same call and shown inline with ![](<name>) in the description. Fails for an ' +
+        'archived project (unarchive it first with update_project).',
       inputSchema: {
         projectId: z.string(),
         title: z.string().min(1),

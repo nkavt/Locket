@@ -10,7 +10,9 @@ import {
   TextInput,
   TextareaInput,
 } from '@/components/ui';
+import { Icon } from '@/components/Icon';
 import { PROJECT_COLORS, PROJECT_ICONS } from '@/data/constants';
+import { isArchived } from '@/data/projectArchive';
 import { useAppState } from '@/state/useAppState';
 import type { Project } from '@/data/types';
 
@@ -66,6 +68,14 @@ export function EditProjectDialog({ open, project, onClose }: EditProjectDialogP
     onClose();
   });
 
+  const archived = !!project && isArchived(project);
+  // Applies at once, like the sidebar menu; unsaved edits in the form are discarded.
+  const toggleArchived = () => {
+    if (!project) return;
+    void updateProject(project.id, { archived: !archived });
+    onClose();
+  };
+
   return (
     <DialogBase
       open={open}
@@ -75,6 +85,16 @@ export function EditProjectDialog({ open, project, onClose }: EditProjectDialogP
       title={t('projects.editProject')}
       actions={
         <>
+          {project && (
+            <Button
+              color="inherit"
+              startIcon={<Icon name={archived ? 'unarchive' : 'archive'} size={18} />}
+              onClick={toggleArchived}
+              sx={{ ml: 1, mr: 'auto', color: 'text.secondary' }}
+            >
+              {archived ? t('projects.archive.unarchiveProject') : t('projects.archive.archive')}
+            </Button>
+          )}
           <Button onClick={onClose}>{t('common.cancel')}</Button>
           <Button variant="contained" onClick={submit} disabled={!isValid || !isDirty}>
             {t('common.save')}

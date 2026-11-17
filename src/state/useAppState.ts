@@ -1,6 +1,7 @@
 import { useContext, useMemo } from 'react';
 import { AppStateContext } from './AppStateContext';
 import type { AppStateApi } from './useAppStateStore';
+import { byArchivedAtDesc, isArchived } from '@/data/projectArchive';
 import type { Project, Ticket } from '@/data/types';
 
 /** Full state API: data plus every mutation. */
@@ -12,6 +13,18 @@ export function useAppState(): AppStateApi {
 
 export function useProjects(): Project[] {
   return useAppState().state.projects;
+}
+
+/** Active projects in creation order, and archived ones with the most recently archived first. */
+export function useProjectGroups(): { active: Project[]; archived: Project[] } {
+  const projects = useProjects();
+  return useMemo(
+    () => ({
+      active: projects.filter((p) => !isArchived(p)),
+      archived: projects.filter(isArchived).sort(byArchivedAtDesc),
+    }),
+    [projects],
+  );
 }
 
 export function useProject(id: string | undefined): Project | undefined {

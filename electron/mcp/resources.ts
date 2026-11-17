@@ -1,7 +1,7 @@
 import { ResourceTemplate, type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { getTicket, listProjects, listTickets } from '../services';
 import type { McpContext } from './context';
-import { ticketToMarkdown } from './format';
+import { archiveFields, ticketToMarkdown } from './format';
 
 export function registerResources(server: McpServer, { log }: McpContext): void {
   server.registerResource(
@@ -9,19 +9,20 @@ export function registerResources(server: McpServer, { log }: McpContext): void 
     'locket://projects',
     {
       title: 'Projects',
-      description: 'All projects as JSON',
+      description: 'All projects as JSON, archived ones included (archived: true)',
       mimeType: 'application/json',
     },
     async (uri) => {
       log('resources/read locket://projects');
-      const projects = (await listProjects()).map(
-        ({ id, name, slug, icon, color, description }) => ({
+      const projects = (await listProjects({ includeArchived: true })).map(
+        ({ id, name, slug, icon, color, description, archivedAt }) => ({
           id,
           name,
           slug,
           icon,
           color,
           description,
+          ...archiveFields(archivedAt),
         }),
       );
       return {
