@@ -2,28 +2,20 @@ import type { EntityManager } from 'typeorm';
 import { repos, withReader, withTransaction } from '../db';
 import type { PersistedProject, PersistedTicket } from '../db/types';
 import {
+  assertDeletable,
   buildWorkflow,
   DEFAULT_WORKFLOW_ID,
   findStatus,
   planWorkflowUpdate,
-  type NewWorkflowInput,
+  type NewWorkflowRequest,
   type PersistedStatus,
   type PersistedWorkflow,
   type WorkflowPatch,
+  type WorkflowSummary,
 } from '../workflows/rules';
-import { NotFoundError, ValidationError } from './errors';
+import { NotFoundError } from './errors';
 
-export interface WorkflowSummary extends PersistedWorkflow {
-  /** Projects using it. A workflow can only be deleted when this is empty. */
-  projectIds: string[];
-  /** Tickets per status id, across every project using it. */
-  ticketCounts: Record<string, number>;
-}
-
-export interface NewWorkflowRequest extends NewWorkflowInput {
-  /** Copy the statuses of this workflow (with new ids) instead of the default ones. */
-  copyFrom?: string;
-}
+export type { NewWorkflowRequest, WorkflowSummary } from '../workflows/rules';
 
 const summarize = (
   w: PersistedWorkflow,
@@ -111,15 +103,10 @@ export const updateWorkflow = (id: string, patch: WorkflowPatch): Promise<Workfl
 export const deleteWorkflow = (id: string): Promise<void> =>
   withTransaction(async (em) => {
     const workflow = await load(em, id);
-    if (id === DEFAULT_WORKFLOW_ID) {
-      throw new ValidationError('The default workflow cannot be deleted');
-    }
     const users = await repos.projects.findByWorkflow(em, id);
-    if (users.length) {
-      throw new ValidationError(
-        `Workflow "${workflow.name}" is used by ${users.map((p) => p.id).join(', ')}. ` +
-          'Move those projects to another workflow first.',
-      );
-    }
+    assertDeletable(
+      workflow,
+      users.map((p) => p.id),
+    );
     await repos.workflows.remove(em, id);
   });

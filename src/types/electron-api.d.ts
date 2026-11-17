@@ -1,5 +1,9 @@
 import type { Attachment, Comment, Project, Ticket } from '../data/types';
-import type { NewWorkflowInput, Workflow, WorkflowPatch } from '../data/workflows';
+import type { Workflow, WorkflowPatch } from '../data/workflows';
+import type { ProjectUpdateOptions } from '../../electron/db/types';
+import type { NewWorkflowRequest, WorkflowSummary } from '../../electron/workflows/rules';
+
+export type { NewWorkflowRequest, ProjectUpdateOptions, WorkflowSummary };
 import type { SystemInfo } from '../../electron/system/about';
 
 export type { SystemInfo };
@@ -48,21 +52,6 @@ export interface NewProjectInput {
 export type ProjectPatch = Partial<
   Pick<Project, 'name' | 'icon' | 'color' | 'description' | 'workflowId'>
 >;
-
-export interface ProjectUpdateOptions {
-  /** On a workflow switch: old status id → new status id. Missing ones map by category. */
-  statusMap?: Record<string, string>;
-}
-
-export interface NewWorkflowRequest extends NewWorkflowInput {
-  /** Copy this workflow's statuses (with new ids). */
-  copyFrom?: string;
-}
-
-export interface WorkflowSummary extends Workflow {
-  projectIds: string[];
-  ticketCounts: Record<string, number>;
-}
 
 export interface ProjectSummary extends Project {
   ticketCount: number;

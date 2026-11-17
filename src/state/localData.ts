@@ -7,6 +7,7 @@ import {
   unknownIconMessage,
 } from '@/data/projectIcons';
 import {
+  assertDeletable,
   buildWorkflow,
   DEFAULT_WORKFLOW_ID,
   defaultStatus,
@@ -14,6 +15,7 @@ import {
   planWorkflowUpdate,
   resolveStatus,
   workflowOf,
+  workflowUsage,
   type Workflow,
   type WorkflowPatch,
 } from '@/data/workflows';
@@ -288,12 +290,8 @@ export function createWorkflow(d: PersistedData, input: NewWorkflowRequest) {
 
 export function updateWorkflow(d: PersistedData, id: string, patch: WorkflowPatch) {
   const current = findWorkflow(d, id);
-  const projectIds = d.projects.filter((p) => p.workflowId === id).map((p) => p.id);
-  const counts: Record<string, number> = {};
-  for (const t of d.tickets) {
-    if (projectIds.includes(t.projectId)) counts[t.status] = (counts[t.status] ?? 0) + 1;
-  }
-  const { workflow, moves } = planWorkflowUpdate(current, patch, counts, allStatusIds(d, id));
+  const { projectIds, ticketCounts } = workflowUsage([current], d.projects, d.tickets)[id];
+  const { workflow, moves } = planWorkflowUpdate(current, patch, ticketCounts, allStatusIds(d, id));
   const moved = moveStatuses(d, projectIds, moves);
   const data = { ...moved, workflows: d.workflows.map((w) => (w.id === id ? workflow : w)) };
   return { data, workflow };
@@ -301,13 +299,9 @@ export function updateWorkflow(d: PersistedData, id: string, patch: WorkflowPatc
 
 export function deleteWorkflow(d: PersistedData, id: string): PersistedData {
   const workflow = findWorkflow(d, id);
-  if (id === DEFAULT_WORKFLOW_ID) throw new Error('The default workflow cannot be deleted');
-  const users = d.projects.filter((p) => p.workflowId === id);
-  if (users.length) {
-    throw new Error(
-      `Workflow "${workflow.name}" is used by ${users.map((p) => p.id).join(', ')}. ` +
-        'Move those projects to another workflow first.',
-    );
-  }
+  assertDeletable(
+    workflow,
+    d.projects.filter((p) => p.workflowId === id).map((p) => p.id),
+  );
   return { ...d, workflows: d.workflows.filter((w) => w.id !== id) };
 }

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  assertDeletable,
   buildStatuses,
   buildWorkflow,
+  closestStatus,
+  countByStatus,
   DEFAULT_WORKFLOW,
   defaultStatus,
   isClosed,
@@ -10,6 +13,9 @@ import {
   planWorkflowSwitch,
   planWorkflowUpdate,
   resolveStatus,
+  statusNameIssues,
+  workflowDeleteBlocker,
+  workflowUsage,
   type PersistedWorkflow,
 } from './rules';
 
@@ -174,5 +180,81 @@ describe('switching workflow', () => {
     expect(() => planWorkflowSwitch(REVIEW, DEFAULT_WORKFLOW, { dropped: 'Gone' })).toThrow(
       /Allowed: todo/,
     );
+  });
+});
+
+describe('closestStatus', () => {
+  const list = [
+    { key: 'a', category: 'active' as const },
+    { key: 'b', category: 'todo' as const },
+    { key: 'c', category: 'done' as const },
+  ];
+  it('takes the first of the same category', () => {
+    expect(closestStatus('done', list).key).toBe('c');
+  });
+  it('falls back to the first todo, then to the first', () => {
+    expect(closestStatus('cancelled', list).key).toBe('b');
+    expect(closestStatus('cancelled', [list[0], list[2]]).key).toBe('a');
+  });
+});
+
+describe('statusNameIssues', () => {
+  it('flags blanks and later repeats ignoring case and spaces', () => {
+    expect(statusNameIssues(['To Do', ' ', 'to do ', 'Done'])).toEqual([
+      null,
+      { kind: 'blank' },
+      { kind: 'duplicate', name: 'to do' },
+      null,
+    ]);
+  });
+  it('is what buildStatuses refuses', () => {
+    expect(() => buildStatuses([{ name: 'A' }, { name: 'a' }], new Set(), new Set())).toThrow(
+      'Two statuses are called "a"',
+    );
+  });
+});
+
+describe('workflowUsage', () => {
+  it('lists the projects of each workflow and counts their tickets per status', () => {
+    const usage = workflowUsage(
+      [{ id: 'default' }, { id: 'wf-review' }, { id: 'wf-unused' }],
+      [
+        { id: 'p1', workflowId: 'default' },
+        { id: 'p2', workflowId: 'wf-review' },
+        { id: 'p3', workflowId: 'default' },
+      ],
+      [
+        { projectId: 'p1', status: 'todo' },
+        { projectId: 'p3', status: 'todo' },
+        { projectId: 'p3', status: 'done' },
+        { projectId: 'p2', status: 'review' },
+      ],
+    );
+    expect(usage).toEqual({
+      default: { projectIds: ['p1', 'p3'], ticketCounts: { todo: 2, done: 1 } },
+      'wf-review': { projectIds: ['p2'], ticketCounts: { review: 1 } },
+      'wf-unused': { projectIds: [], ticketCounts: {} },
+    });
+  });
+  it('countByStatus counts any ticket list', () => {
+    expect(countByStatus([{ status: 'a' }, { status: 'b' }, { status: 'a' }])).toEqual({
+      a: 2,
+      b: 1,
+    });
+  });
+});
+
+describe('deleting a workflow', () => {
+  it('is blocked for the default one and for one in use', () => {
+    expect(workflowDeleteBlocker('default', [])).toBe('default');
+    expect(workflowDeleteBlocker('wf-review', ['p1'])).toBe('in_use');
+    expect(workflowDeleteBlocker('wf-review', [])).toBeNull();
+  });
+  it('assertDeletable explains why', () => {
+    expect(() => assertDeletable(DEFAULT_WORKFLOW, [])).toThrow('cannot be deleted');
+    expect(() => assertDeletable(REVIEW, ['p1', 'p2'])).toThrow(
+      'Workflow "Review" is used by p1, p2. Move those projects to another workflow first.',
+    );
+    expect(() => assertDeletable(REVIEW, [])).not.toThrow();
   });
 });

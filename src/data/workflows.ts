@@ -1,7 +1,10 @@
 // Workflow rules shared with the main process (see electron/workflows/rules.ts).
 export {
   allowedStatuses,
+  assertDeletable,
   buildWorkflow,
+  closestStatus,
+  countByStatus,
   DEFAULT_STATUS_COLOR,
   DEFAULT_STATUS_ICON,
   DEFAULT_WORKFLOW,
@@ -16,13 +19,19 @@ export {
   resolveStatus,
   STATUS_CATEGORIES,
   STATUS_ICONS,
+  statusNameIssues,
   THEME_STATUS_COLORS,
+  workflowDeleteBlocker,
+  workflowUsage,
+  type DeleteBlocker,
   type NewWorkflowInput,
   type PersistedStatus as WorkflowStatus,
   type PersistedWorkflow as Workflow,
   type StatusCategory,
   type StatusInput,
+  type StatusNameIssue,
   type WorkflowPatch,
+  type WorkflowUsage,
 } from '../../electron/workflows/rules';
 export { normalizeData, type LoosePersistedData } from '../../electron/workflows/normalize';
 

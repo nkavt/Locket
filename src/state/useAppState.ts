@@ -2,7 +2,9 @@ import { useContext, useMemo } from 'react';
 import { AppStateContext } from './AppStateContext';
 import type { AppStateApi } from './useAppStateStore';
 import type { Project, Ticket } from '@/data/types';
-import { workflowOf, type Workflow } from '@/data/workflows';
+import { workflowOf, workflowUsage, type Workflow, type WorkflowUsage } from '@/data/workflows';
+
+export type { WorkflowUsage };
 
 /** Full state API: data plus every mutation. */
 export function useAppState(): AppStateApi {
@@ -59,32 +61,8 @@ export function useProjectWorkflow(project: Pick<Project, 'workflowId'> | undefi
   return workflowOf(workflows, project?.workflowId);
 }
 
-export interface WorkflowUsage {
-  /** Projects using the workflow; it can only be deleted when there are none. */
-  projectIds: string[];
-  /** Tickets per status id, across those projects. */
-  ticketCounts: Record<string, number>;
-}
-
-/** Map of workflowId → who uses it, for the workflow settings. */
+/** Map of workflowId → the projects using it and their tickets per status. */
 export function useWorkflowUsage(): Record<string, WorkflowUsage> {
   const { workflows, projects, tickets } = useAppState().state;
-  return useMemo(() => {
-    const usage: Record<string, WorkflowUsage> = {};
-    for (const w of workflows) usage[w.id] = { projectIds: [], ticketCounts: {} };
-    const projectWorkflow = new Map<string, string>();
-    for (const p of projects) {
-      const id = workflowOf(workflows, p.workflowId)?.id;
-      if (!id) continue;
-      projectWorkflow.set(p.id, id);
-      usage[id].projectIds.push(p.id);
-    }
-    for (const t of tickets) {
-      const id = projectWorkflow.get(t.projectId);
-      if (!id) continue;
-      const counts = usage[id].ticketCounts;
-      counts[t.status] = (counts[t.status] ?? 0) + 1;
-    }
-    return usage;
-  }, [workflows, projects, tickets]);
+  return useMemo(() => workflowUsage(workflows, projects, tickets), [workflows, projects, tickets]);
 }

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { SettingsCard } from './SettingsCard';
 import { WorkflowRow } from './WorkflowRow';
 import { Icon } from '@/components/Icon';
-import { DEFAULT_WORKFLOW_ID } from '@/data/workflows';
+import { workflowDeleteBlocker, type DeleteBlocker } from '@/data/workflows';
 import { WorkflowEditorDialog } from '@/features/workflows/WorkflowEditorDialog';
 import { useAppState, useProjects, useWorkflowUsage } from '@/state/useAppState';
 
@@ -19,12 +19,10 @@ export function WorkflowsCard() {
   const [session, setSession] = useState(0);
 
   const projectName = (id: string) => projects.find((p) => p.id === id)?.name ?? id;
-  const deleteBlocked = (id: string, used: number) =>
-    id === DEFAULT_WORKFLOW_ID
-      ? t('settings.workflows.deleteDefault')
-      : used
-        ? t('settings.workflows.deleteInUse')
-        : null;
+  const blockerText: Record<DeleteBlocker, string> = {
+    default: t('settings.workflows.deleteDefault'),
+    in_use: t('settings.workflows.deleteInUse'),
+  };
 
   return (
     <SettingsCard
@@ -46,6 +44,7 @@ export function WorkflowsCard() {
     >
       {state.workflows.map((w, i) => {
         const used = usage[w.id]?.projectIds ?? [];
+        const blocker = workflowDeleteBlocker(w.id, used);
         return (
           <Fragment key={w.id}>
             {i > 0 && <Divider />}
@@ -53,7 +52,7 @@ export function WorkflowsCard() {
               workflow={w}
               usedBy={used.map(projectName)}
               usage={usage[w.id]}
-              deleteBlocked={deleteBlocked(w.id, used.length)}
+              deleteBlocked={blocker && blockerText[blocker]}
             />
           </Fragment>
         );

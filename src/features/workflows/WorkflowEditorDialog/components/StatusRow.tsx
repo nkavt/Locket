@@ -1,5 +1,5 @@
 import { Box, IconButton, Popover, Tooltip, Typography, useTheme } from '@mui/material';
-import { useState, type DragEvent, type KeyboardEvent } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/Icon';
 import { StatusIcon } from '@/components/StatusIcon';
@@ -7,16 +7,7 @@ import { ColorPicker, FieldLabel, IconPicker, SelectInput, TextInput } from '@/c
 import type { StatusCategory } from '@/data/types';
 import { STATUS_CATEGORIES, STATUS_COLORS, STATUS_ICONS } from '@/data/workflows';
 import { paletteColor } from '@/utils/tint';
-
-export interface StatusDraft {
-  /** Stable React key; new statuses have no `id` until saved. */
-  key: string;
-  id?: string;
-  name: string;
-  icon: string;
-  color: string;
-  category: StatusCategory;
-}
+import type { DragReorder, StatusDraft } from '../useStatusDrafts';
 
 interface StatusRowProps {
   status: StatusDraft;
@@ -26,17 +17,12 @@ interface StatusRowProps {
   /** Focus the name field (a row that was just added). */
   autoFocus?: boolean;
   canRemove: boolean;
-  dragging: boolean;
+  /** Reordering by dragging the handle; the row wires its own drag events to it. */
+  drag: DragReorder;
   onChange: (patch: Partial<StatusDraft>) => void;
   onRemove: () => void;
   /** Keyboard reordering from the drag handle: -1 up, +1 down. */
   onMove: (delta: -1 | 1) => void;
-  dragProps: {
-    onDragStart: (e: DragEvent) => void;
-    onDragEnter: (e: DragEvent) => void;
-    onDragOver: (e: DragEvent) => void;
-    onDragEnd: () => void;
-  };
 }
 
 /** One editable status: drag handle, icon and colour, name, category, tickets, delete. */
@@ -46,11 +32,10 @@ export function StatusRow({
   error,
   autoFocus,
   canRemove,
-  dragging,
+  drag,
   onChange,
   onRemove,
   onMove,
-  dragProps,
 }: StatusRowProps) {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -59,6 +44,7 @@ export function StatusRow({
   // The icon picker tints with a real colour; a theme colour like "text.disabled" isn't one.
   const resolved = paletteColor(theme, status.color);
   const tint = resolved.startsWith('#') ? resolved : theme.palette.grey[600];
+  const dragging = drag.key === status.key;
 
   const onHandleKey = (e: KeyboardEvent) => {
     if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
@@ -69,8 +55,11 @@ export function StatusRow({
 
   return (
     <Box
-      onDragEnter={dragProps.onDragEnter}
-      onDragOver={dragProps.onDragOver}
+      // Reorder live as the dragged row passes over this one.
+      onDragEnter={() => drag.enter(status.key)}
+      onDragOver={(e) => {
+        if (drag.key) e.preventDefault();
+      }}
       sx={{
         display: 'flex',
         alignItems: 'flex-start',
@@ -88,8 +77,11 @@ export function StatusRow({
           tabIndex={0}
           aria-label={t('settings.workflows.editor.drag', { name: label })}
           draggable
-          onDragStart={dragProps.onDragStart}
-          onDragEnd={dragProps.onDragEnd}
+          onDragStart={(e) => {
+            e.dataTransfer.effectAllowed = 'move';
+            drag.start(status.key);
+          }}
+          onDragEnd={drag.end}
           onKeyDown={onHandleKey}
           sx={{
             height: 40,

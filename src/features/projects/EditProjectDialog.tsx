@@ -1,5 +1,5 @@
 import { Box, Button } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import {
@@ -11,10 +11,9 @@ import {
   TextareaInput,
 } from '@/components/ui';
 import { PROJECT_COLORS, PROJECT_ICONS } from '@/data/constants';
-import { workflowOf } from '@/data/workflows';
 import { SwitchWorkflowDialog } from '@/features/workflows/SwitchWorkflowDialog';
 import { WorkflowSelect } from '@/features/workflows/WorkflowSelect';
-import { useAppState, useProjectTickets, useWorkflows } from '@/state/useAppState';
+import { useAppState, useProjectTickets } from '@/state/useAppState';
 import type { Project } from '@/data/types';
 
 interface EditProjectDialogProps {
@@ -38,13 +37,7 @@ interface EditFormValues {
 export function EditProjectDialog({ open, project, onClose }: EditProjectDialogProps) {
   const { t } = useTranslation();
   const { updateProject } = useAppState();
-  const workflows = useWorkflows();
-  const tickets = useProjectTickets(project?.id);
-  const ticketCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const x of tickets) counts[x.status] = (counts[x.status] ?? 0) + 1;
-    return counts;
-  }, [tickets]);
+  const hasTickets = useProjectTickets(project?.id).length > 0;
   /** Form values waiting for the switch review. */
   const [pending, setPending] = useState<EditFormValues | null>(null);
   const {
@@ -96,7 +89,7 @@ export function EditProjectDialog({ open, project, onClose }: EditProjectDialogP
   };
 
   const submit = handleSubmit((v) => {
-    if (project && v.workflowId !== project.workflowId && tickets.length > 0) setPending(v);
+    if (project && v.workflowId !== project.workflowId && hasTickets) setPending(v);
     else save(v);
   });
 
@@ -168,10 +161,8 @@ export function EditProjectDialog({ open, project, onClose }: EditProjectDialogP
       </Box>
       {project && pending && (
         <SwitchWorkflowDialog
-          open
-          from={workflowOf(workflows, project.workflowId)}
-          to={workflowOf(workflows, pending.workflowId)}
-          ticketCounts={ticketCounts}
+          project={project}
+          toWorkflowId={pending.workflowId}
           onClose={() => setPending(null)}
           onConfirm={(statusMap) => save(pending, statusMap)}
         />

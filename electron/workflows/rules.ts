@@ -43,6 +43,20 @@ export interface NewWorkflowInput {
   statuses?: StatusInput[];
 }
 
+export interface NewWorkflowRequest extends NewWorkflowInput {
+  /** Copy the statuses of this workflow (with new ids) instead of the default ones. */
+  copyFrom?: string;
+}
+
+export interface WorkflowUsage {
+  /** Projects using it. A workflow can only be deleted when this is empty. */
+  projectIds: string[];
+  /** Tickets per status id, across every project using it. */
+  ticketCounts: Record<string, number>;
+}
+
+export type WorkflowSummary = PersistedWorkflow & WorkflowUsage;
+
 export interface WorkflowPatch {
   name?: string;
   /** The complete new list, in order. Statuses left out are deleted. */
@@ -147,9 +161,21 @@ export const findStatus = (
   id: string,
 ): PersistedStatus | undefined => workflow?.statuses.find((s) => s.id === id);
 
+/**
+ * The status that best takes over from one of `category`: the first of the same category,
+ * else the first `todo` one, else the first. Works on drafts too (anything with a category).
+ */
+export const closestStatus = <T extends Pick<PersistedStatus, 'category'>>(
+  category: StatusCategory,
+  candidates: readonly T[],
+): T =>
+  candidates.find((c) => c.category === category) ??
+  candidates.find((c) => c.category === 'todo') ??
+  candidates[0];
+
 /** Where new tickets start: the first `todo` status, else the first one. */
 export const defaultStatus = (workflow: PersistedWorkflow): PersistedStatus =>
-  workflow.statuses.find((s) => s.category === 'todo') ?? workflow.statuses[0];
+  closestStatus('todo', workflow.statuses);
 
 /** "todo (To Do), in_progress (In Progress), …" for error messages. */
 export const allowedStatuses = (workflow: PersistedWorkflow): string =>
@@ -178,8 +204,8 @@ export const resolveStatus = (workflow: PersistedWorkflow, idOrName: string): Pe
 };
 
 /**
- * Where each status of `from` goes in `to`: the first status of the same category, else the
- * target's default. Used when a project switches workflow; the app shows it for review first.
+ * Where each status of `from` goes in `to`: the same status if `to` has it, else the closest
+ * one (see closestStatus). Used when a project switches workflow; the app shows it for review first.
  */
 export const mapByCategory = (
   from: PersistedWorkflow,
@@ -187,13 +213,78 @@ export const mapByCategory = (
 ): Record<string, string> =>
   Object.fromEntries(
     from.statuses.map((s) => {
-      const same =
-        to.statuses.find((t) => t.id === s.id) ??
-        to.statuses.find((t) => t.category === s.category) ??
-        defaultStatus(to);
+      const same = to.statuses.find((t) => t.id === s.id) ?? closestStatus(s.category, to.statuses);
       return [s.id, same.id];
     }),
   );
+
+export type StatusNameIssue = { kind: 'blank' } | { kind: 'duplicate'; name: string };
+
+/**
+ * What is wrong with each status name, in order (null when fine): blank, or the same as an
+ * earlier one ignoring case. The editor shows these; buildStatuses refuses them.
+ */
+export const statusNameIssues = (names: readonly string[]): (StatusNameIssue | null)[] => {
+  const seen = new Set<string>();
+  return names.map((raw) => {
+    const name = raw.trim();
+    const key = name.toLowerCase();
+    if (!key) return { kind: 'blank' };
+    if (seen.has(key)) return { kind: 'duplicate', name };
+    seen.add(key);
+    return null;
+  });
+};
+
+/** Tickets per status id. */
+export const countByStatus = (tickets: readonly { status: string }[]): Record<string, number> => {
+  const counts: Record<string, number> = {};
+  for (const t of tickets) counts[t.status] = (counts[t.status] ?? 0) + 1;
+  return counts;
+};
+
+/** For every workflow: the projects using it and how many of their tickets are in each status. */
+export const workflowUsage = (
+  workflows: readonly Pick<PersistedWorkflow, 'id'>[],
+  projects: readonly { id: string; workflowId: string }[],
+  tickets: readonly { projectId: string; status: string }[],
+): Record<string, WorkflowUsage> => {
+  const usage: Record<string, WorkflowUsage> = {};
+  for (const w of workflows) usage[w.id] = { projectIds: [], ticketCounts: {} };
+  const workflowOfProject = new Map<string, string>();
+  for (const p of projects) {
+    if (!usage[p.workflowId]) continue;
+    workflowOfProject.set(p.id, p.workflowId);
+    usage[p.workflowId].projectIds.push(p.id);
+  }
+  for (const [id, entry] of Object.entries(usage)) {
+    entry.ticketCounts = countByStatus(
+      tickets.filter((t) => workflowOfProject.get(t.projectId) === id),
+    );
+  }
+  return usage;
+};
+
+/** Why a workflow can't be deleted: it is the default one, or projects use it. */
+export type DeleteBlocker = 'default' | 'in_use';
+
+export const workflowDeleteBlocker = (
+  workflowId: string,
+  projectIds: readonly string[],
+): DeleteBlocker | null =>
+  workflowId === DEFAULT_WORKFLOW_ID ? 'default' : projectIds.length ? 'in_use' : null;
+
+/** Throws when the workflow can't be deleted (see workflowDeleteBlocker). */
+export const assertDeletable = (workflow: PersistedWorkflow, projectIds: readonly string[]) => {
+  const blocker = workflowDeleteBlocker(workflow.id, projectIds);
+  if (blocker === 'default') throw new ValidationError('The default workflow cannot be deleted');
+  if (blocker === 'in_use') {
+    throw new ValidationError(
+      `Workflow "${workflow.name}" is used by ${projectIds.join(', ')}. ` +
+        'Move those projects to another workflow first.',
+    );
+  }
+};
 
 const checkName = (name: unknown, what: string): string => {
   if (typeof name !== 'string' || !name.trim()) throw new ValidationError(`${what} needs a name`);
@@ -214,12 +305,13 @@ export const buildStatuses = (
     throw new ValidationError('A workflow needs at least one status');
   }
   const used = new Set(taken);
-  const names = new Set<string>();
-  return inputs.map((input) => {
-    const name = checkName(input?.name, 'Every status');
-    const key = name.toLowerCase();
-    if (names.has(key)) throw new ValidationError(`Two statuses are called "${name}"`);
-    names.add(key);
+  const names = inputs.map((input) => checkName(input?.name, 'Every status'));
+  const duplicate = statusNameIssues(names).find((issue) => issue?.kind === 'duplicate');
+  if (duplicate?.kind === 'duplicate') {
+    throw new ValidationError(`Two statuses are called "${duplicate.name}"`);
+  }
+  return inputs.map((input, i) => {
+    const name = names[i];
     const icon = input.icon ?? DEFAULT_STATUS_ICON;
     if (!isMaterialSymbol(icon)) throw new ValidationError(unknownIconMessage(String(icon)));
     const color = input.color ?? DEFAULT_STATUS_COLOR;
