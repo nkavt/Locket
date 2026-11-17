@@ -24,7 +24,7 @@ You don't need write access. Work in your own fork:
    ```
 
 3. Create a branch from `main`, for example `fix/comment-duplicates` or `feature/ticket-search`.
-4. Make your change. Add or update tests where it makes sense.
+4. Make your change, following the code structure notes in [AGENTS.md](AGENTS.md). Add or update tests where it makes sense.
 5. Run the same checks as CI:
 
    ```sh
