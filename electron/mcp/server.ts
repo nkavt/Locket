@@ -12,7 +12,8 @@ export const SERVER_INFO = { name: 'locket', version: app.getVersion() };
 const INSTRUCTIONS =
   'Locket is a local task planner. Projects contain tickets identified as <slug>-<n>. ' +
   'Use list_projects to discover project ids, then list_tickets / get_ticket to read, and ' +
-  'create_ticket / update_ticket / add_comment to write. Descriptions and comments are markdown.\n\n' +
+  'create_ticket / update_ticket / add_comment to write. Descriptions and comments are markdown. ' +
+  'Tag code fences with a language (```json, ```ts, ```diff) for highlighting.\n\n' +
   'Images: create_ticket and add_comment take `images` (each a local file `path` or base64 ' +
   '`data` + `mime`, with an optional `name`); attach_images adds them to an existing ticket. ' +
   'Every image has a name unique within its ticket, e.g. "login-screen.png". Show one inline ' +
